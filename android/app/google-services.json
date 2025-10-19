@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "817505647403",
+    "project_id": "ez-deliver-tracksure",
+    "storage_bucket": "ez-deliver-tracksure.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:817505647403:android:b11b8d00d40a38de4ca36e",
+        "android_client_info": {
+          "package_name": "com.example.ez_deliver_tracksure"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDapOSMkmVsu14UML-Yx3nobbeBhalzkFE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
