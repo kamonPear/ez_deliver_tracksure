@@ -22,11 +22,9 @@ class _ProductsState extends State<Products> {
     _fetchData();
   }
 
-  // ⭐️ [แก้ไขแล้ว] เพิ่ม Code สำหรับ Debugging โดยเฉพาะ
   Future<void> _fetchData() async {
     User? user = FirebaseAuth.instance.currentUser;
 
-    // --- จุดตรวจสอบที่ 1: ดู UID ของคนที่ล็อกอินอยู่ ---
     print('--- DEBUGGING ---');
     print('Current User UID from Auth: ${user?.uid}');
     print('-----------------');
@@ -37,7 +35,7 @@ class _ProductsState extends State<Products> {
     }
 
     try {
-      // โค้ดจะใช้ UID นี้ไปหาเอกสาร
+      // ดึงข้อมูล 2 ส่วนพร้อมกัน
       final userDocFuture =
           FirebaseFirestore.instance.collection('customers').doc(user.uid).get();
 
@@ -47,6 +45,7 @@ class _ProductsState extends State<Products> {
           .orderBy('createdAt', descending: true)
           .get();
 
+      // รอให้ทั้ง 2 อย่างเสร็จสิ้น
       final responses = await Future.wait([userDocFuture, ordersFuture]);
       final userDoc = responses[0] as DocumentSnapshot;
       final ordersSnapshot = responses[1] as QuerySnapshot;
@@ -54,14 +53,12 @@ class _ProductsState extends State<Products> {
       if (mounted) {
         setState(() {
           if (userDoc.exists) {
-            // ✅ จุดตรวจสอบที่ 2: ถ้าหาเอกสารเจอ, ดูข้อมูลข้างใน
             _userData = userDoc.data() as Map<String, dynamic>?;
             print('✅ SUCCESS: Found document! Data is: $_userData');
           } else {
-            // ❌ จุดตรวจสอบที่ 3: ถ้าหาเอกสารไม่เจอ
             print(
                 '❌ ERROR: Document with ID "${user.uid}" was NOT FOUND in "customers" collection.');
-            _userData = null; // เคลียร์ข้อมูลเก่าทิ้ง (สำคัญ!)
+            _userData = null;
           }
           _orders = ordersSnapshot.docs;
           _isLoading = false;
@@ -69,10 +66,10 @@ class _ProductsState extends State<Products> {
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
-      print("เกิดข้อผิดพลาดในการดึงข้อมูล Products: $e");
+      // พิมพ์ Error เพื่อให้เห็นใน Console (สำคัญมากสำหรับการแก้ไขปัญหา Index)
+      print("🚨 เกิดข้อผิดพลาดในการดึงข้อมูล Products: $e");
     }
   }
-
 
   // ฟังก์ชันสำหรับจัดการการแตะที่ BottomNavigationBar
   void _onItemTapped(BuildContext context, int index) {
@@ -90,65 +87,6 @@ class _ProductsState extends State<Products> {
 
   // --- WIDGETS สำหรับแสดงผล ---
 
-  // [ใหม่] Widget สำหรับสร้าง Card ของลูกค้าแต่ละคน
-  Widget _buildCustomerCard(DocumentSnapshot customerDoc) {
-    final data = customerDoc.data() as Map<String, dynamic>;
-    final String customerName = data['customer_name'] ?? 'ไม่มีชื่อ';
-    final String customerPhone = data['customer_phone'] ?? 'ไม่มีเบอร์โทร';
-    final String? profileImageUrl = data['profile_image_url'];
-
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 25,
-          backgroundColor: Colors.grey[200],
-          backgroundImage:
-              profileImageUrl != null ? NetworkImage(profileImageUrl) : null,
-          child: profileImageUrl == null
-              ? const Icon(Icons.person, color: Colors.grey, size: 30)
-              : null,
-        ),
-        title: Text(customerName,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(customerPhone),
-        contentPadding:
-            const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      ),
-    );
-  }
-
-  // [ใหม่ & แก้ไขแล้ว] Widget สำหรับแสดงรายชื่อลูกค้าทั้งหมด
-  Widget _buildAllCustomersList() {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('customers').snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(child: Text('ไม่มีข้อมูลลูกค้า'));
-        }
-        final customers = snapshot.data!.docs;
-
-        // 💥 แก้ไขโดยใช้ ListView.builder พร้อมคุณสมบัติที่จำเป็น
-        return ListView.builder(
-          // 1. ทำให้ ListView สูงเท่ากับเนื้อหา
-          shrinkWrap: true,
-          // 2. ปิดการ scroll ของ ListView นี้ (ให้ SingleChildScrollView จัดการแทน)
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: customers.length,
-          itemBuilder: (context, index) {
-            return _buildCustomerCard(customers[index]);
-          },
-        );
-      },
-    );
-  }
-
-  // Widget _buildShippingListCard (โค้ดเดิม)
   Widget _buildShippingListCard(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -199,7 +137,6 @@ class _ProductsState extends State<Products> {
     );
   }
 
-  // Widget _buildDeliveryItemCard (โค้ดเดิม)
   Widget _buildDeliveryItemCard(QueryDocumentSnapshot orderDoc) {
     const Color primaryColor = Color(0xFF07AA7C);
     final data = orderDoc.data() as Map<String, dynamic>;
@@ -309,7 +246,6 @@ class _ProductsState extends State<Products> {
     );
   }
 
-  // Widget _buildLocationRow (โค้ดเดิม)
   Widget _buildLocationRow(
       IconData icon, Color color, String location, String name) {
     return Row(
@@ -376,7 +312,7 @@ class _ProductsState extends State<Products> {
           Expanded(
             child: SingleChildScrollView(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start, // จัดชิดซ้าย
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
 
@@ -402,20 +338,6 @@ class _ProductsState extends State<Products> {
                           .map((orderDoc) => _buildDeliveryItemCard(orderDoc))
                           .toList(),
                     ),
-
-                  const SizedBox(height: 24), // เพิ่มระยะห่าง
-
-                  // --- ส่วนที่ 2: แสดงรายชื่อลูกค้าทั้งหมด (Customers) ---
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text(
-                      'ลูกค้าทั้งหมด',
-                      style:
-                          TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _buildAllCustomersList(), // ⭐️ เรียกใช้ Widget ที่แก้ไขแล้ว
 
                   const SizedBox(height: 20), // Padding ด้านล่างสุด
                 ],
