@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:http/http.dart' as http; // ใช้สำหรับเรียก API ฟรี
-import 'dart:convert'; // ใช้สำหรับแปลงข้อมูล JSON
+import 'package:http/http.dart' as http; // Use for free API calls
+import 'dart:convert'; // Use for JSON data conversion
 
 class Mapgps extends StatefulWidget {
   final LatLng? initialLocation;
@@ -26,8 +26,9 @@ class _MapgpsState extends State<Mapgps> {
     if (widget.initialLocation != null) {
       _getAddressFromLatLng(widget.initialLocation!);
     } else {
-       // ถ้าไม่มีค่าเริ่มต้น ให้ตั้งค่าเป็นตำแหน่งกลางของประเทศไทย
-      _selectedLocation = const LatLng(13.7563, 100.5018);
+      // ถ้าไม่มีค่าเริ่มต้น ให้ตั้งค่าเป็นตำแหน่งของมหาวิทยาลัยมหาสารคาม (เขตพื้นที่ในเมือง)
+      // Coordinates for Mahasarakham University (Urban Campus): 16.2001, 103.2847
+      _selectedLocation = const LatLng(16.244249, 103.249615);
     }
   }
 
@@ -115,7 +116,8 @@ class _MapgpsState extends State<Mapgps> {
                   mapController: _mapController,
                   options: MapOptions(
                     initialCenter: _selectedLocation!,
-                    initialZoom: widget.initialLocation != null ? 16.0 : 12.0,
+                    // ปรับ zoom เป็น 15.0 เมื่อไม่มี initialLocation เพื่อให้เห็น มมส ชัดเจนขึ้น
+                    initialZoom: widget.initialLocation != null ? 16.0 : 15.0, 
                     onTap: (tapPosition, point) {
                       if (!_isPopping) {
                         _getAddressFromLatLng(point);
