@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 // ต้องแน่ใจว่าคุณมีไฟล์ rider_bottom_bar.dart ที่มีคลาส StatusBottomBar
 import 'rider_bottom_bar.dart';
 import 'rider_status.dart';
-import 'package:delivery_ui/pages/login.dart';
+import 'package:ez_deliver_tracksure/pages/login.dart';
 
 // สมมติว่าคุณมีคลาสนี้อยู่ (เพื่อให้โค้ดคอมไพล์ได้)
 
