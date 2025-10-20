@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'bottom_bar.dart';
 
-class OrderTrackingScreen extends StatelessWidget {
-  const OrderTrackingScreen({super.key});
+class OrderStatus extends StatelessWidget {
+  const OrderStatus({super.key});
 
   @override
   Widget build(BuildContext context) {

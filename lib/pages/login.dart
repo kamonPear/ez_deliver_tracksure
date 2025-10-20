@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Import หน้าอื่นๆ ที่จำเป็นจากไฟล์ placeholder
 import 'Registration.dart';
 import 'all.dart';
-import 'orderrider.dart';
+//import 'orderrider.dart';
 
 
 class LoginPage extends StatefulWidget {
@@ -76,10 +76,10 @@ class _LoginPageState extends State<LoginPage> {
 
           if (riderDoc.exists) {
             // ถ้าเจอใน 'riders' -> ไปยังหน้าสถานะของไรเดอร์
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const StatusScreen()),
-            );
+            // Navigator.pushReplacement(
+            //   context,
+            //   MaterialPageRoute(builder: (context) => const StatusScreen()),
+            // );
           } else {
             // ไม่พบข้อมูลในทั้ง 2 collections
             _showErrorDialog('ไม่พบข้อมูลผู้ใช้งานในระบบ');
