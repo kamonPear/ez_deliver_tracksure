@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'rider_bottom_bar.dart';
 import 'rider_status.dart';
-import 'package:delivery_ui/pages/login.dart';
+import 'package:ez_deliver_tracksure/pages/login.dart';
 import 'editrider.dart';
 
 // ----------------------

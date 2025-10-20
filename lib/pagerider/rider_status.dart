@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'rider_bottom_bar.dart'; 
 import 'rider_home.dart';
 import 'rider_home.dart'; 
-import 'package:delivery_ui/pages/login.dart';
+import 'package:ez_deliver_tracksure/pages/login.dart';
 
 class DeliveryStatusScreen extends StatelessWidget {
   const DeliveryStatusScreen({super.key});
