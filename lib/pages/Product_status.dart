@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'bottom_bar.dart';
 
-class OrderStatus extends StatelessWidget {
-  const OrderStatus({super.key});
+class ProductStatus extends StatelessWidget {
+  const ProductStatus({super.key});
 
   @override
   Widget build(BuildContext context) {

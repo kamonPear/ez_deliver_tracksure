@@ -6,7 +6,6 @@ import 'products.dart';
 import 'top_bar.dart';
 import 'bottom_bar.dart';
 import 'pre_order.dart'; // <-- 1. เพิ่ม import สำหรับหน้าส่งสินค้า
-import 'product_status.dart'; // <-- 2. เพิ่ม import สำหรับหน้าสถานะพัสดุ
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -87,17 +86,21 @@ class _HomeScreenState extends State<HomeScreen> {
           const SnackBar(content: Text('หน้านี้ยังไม่พร้อมใช้งาน')),
         );
         // รีเซ็ต index กลับเป็นค่าก่อนหน้า
-         if (mounted) {
-            setState(() {
-              _selectedIndex = 0; // หรือค่า index ก่อนหน้าที่จะกด
-            });
-          }
+        if (mounted) {
+          setState(() {
+            _selectedIndex = 0; // หรือค่า index ก่อนหน้าที่จะกด
+          });
+        }
         break;
     }
   }
 
   // 3. แก้ไขฟังก์ชันให้รับ onTap Action เข้ามาได้
-  Widget _buildWideMenuButton(String imagePath, String label, VoidCallback onTap) {
+  Widget _buildWideMenuButton(
+    String imagePath,
+    String label,
+    VoidCallback onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -124,7 +127,11 @@ class _HomeScreenState extends State<HomeScreen> {
             Text(
               label,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 20, color: Colors.black87, fontWeight: FontWeight.w600),
+              style: const TextStyle(
+                fontSize: 20,
+                color: Colors.black87,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ],
         ),
@@ -157,7 +164,11 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16, color: Colors.black87, fontWeight: FontWeight.w500),
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.black87,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -212,7 +223,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const PreOrder()),
+                            MaterialPageRoute(
+                              builder: (context) => const PreOrderScreen(),
+                            ),
                           );
                         },
                       ),
@@ -222,9 +235,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         'assets/image/order2.png',
                         'สถานะพัสดุ',
                         () {
-                           Navigator.push(
+                          Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => const OrderStatus()),
+                            MaterialPageRoute(
+                              builder: (context) => const ProductStatus(),
+                            ),
                           );
                         },
                       ),
@@ -350,8 +365,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       child: Column(
         children: [
-          const Icon(Icons.local_shipping,
-              color: Color(0xFF07AA7C), size: 30),
+          const Icon(Icons.local_shipping, color: Color(0xFF07AA7C), size: 30),
           const SizedBox(height: 4),
           Text(
             text,
@@ -402,4 +416,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
-
