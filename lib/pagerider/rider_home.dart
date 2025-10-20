@@ -3,17 +3,74 @@ import 'rider_bottom_bar.dart';
 import 'rider_status.dart';
 import 'package:ez_deliver_tracksure/pages/login.dart';
 import 'editrider.dart';
+// **[NEW]** เพิ่ม Firebase Imports
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 // ----------------------
 // 1. กำหนดค่าสี (Colors)
 // ----------------------
 const Color primaryGreen = Color(0xFF00C853); // เขียวหลัก
-const Color darkBlue = Color(0xFF1A237E);    // น้ำเงินเข้ม (สำหรับ Gradient)
+const Color darkBlue = Color(0xFF1A237E); // น้ำเงินเข้ม (สำหรับ Gradient)
 const Color secondaryGreen = Color(0xFF4CAF50); // เขียวปุ่ม 'รับงาน'
-const Color darkBottomNav = Color(0xFF00796B);  // เขียวอมน้ำเงิน (สำหรับ Bottom Nav)
-const Color locationPinRed = Color(0xFFF44336);  // แดงหมุด
-const Color packageBrown = Color(0xFF8D6E63);  // น้ำตาลไอคอนพัสดุ
+const Color darkBottomNav = Color(0xFF00796B); // เขียวอมน้ำเงิน (สำหรับ Bottom Nav)
+const Color locationPinRed = Color(0xFFF44336); // แดงหมุด
+const Color packageBrown = Color(0xFF8D6E63); // น้ำตาลไอคอนพัสดุ
 
+// ----------------------
+// **[NEW]** 1.1 Order Model สำหรับจัดการข้อมูล (แก้ไข createdDate เป็น DateTime?)
+// ----------------------
+class Order {
+  final String orderId;
+  final DateTime? createdDate; // เปลี่ยนเป็น DateTime?
+  final String customerName;
+  final String destination;
+  final String pickupLocation;
+  final String productDescription;
+  final String receiverName;
+  final String receiverPhone;
+  final String? productImageUrl;
+
+  // *** เพิ่มสถานะของออเดอร์ (สมมติว่ามี field: 'status' ใน Firebase) ***
+  final String status;
+
+  Order({
+    required this.orderId,
+    this.createdDate, // อัปเดต constructor
+    required this.customerName,
+    required this.destination,
+    required this.pickupLocation,
+    required this.productDescription,
+    required this.receiverName,
+    required this.receiverPhone,
+    this.productImageUrl,
+    this.status = 'pending', // สถานะเริ่มต้น
+  });
+
+  factory Order.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>?;
+
+    // ตรวจสอบว่า data ไม่เป็น null ก่อนเข้าถึง key
+    if (data == null) {
+      throw Exception("Order data is null for document ${doc.id}");
+    }
+
+    final Timestamp? createdAtTimestamp = data['createdAt'] as Timestamp?; // ดึง Timestamp
+
+    return Order(
+      orderId: doc.id,
+      createdDate: createdAtTimestamp?.toDate(), // **[FIX]** แปลงเป็น DateTime
+      customerName: data['customerName'] ?? 'ไม่ระบุลูกค้า',
+      destination: data['destination'] ?? 'ไม่ระบุปลายทาง', // ดึงจาก Field 'destination'
+      pickupLocation: data['pickupLocation'] ?? 'ไม่ระบุต้นทาง', // ดึงจาก Field 'pickupLocation'
+      productDescription: data['productDescription'] ?? 'ไม่ระบุสินค้า', // ดึงจาก Field 'productDescription'
+      receiverName: data['receiverName'] ?? 'ไม่ระบุผู้รับ', // ดึงจาก Field 'receiverName'
+      receiverPhone: data['receiverPhone'] ?? 'ไม่ระบุเบอร์โทร', // ดึงจาก Field 'receiverPhone'
+      productImageUrl: data['productImageUrl'],
+      status: data['status'] ?? 'pending', // ดึงจาก Field 'status' (ถ้ามี)
+    );
+  }
+}
 
 // ----------------------
 // 2. หน้าจอหลัก (DeliveryHomePage)
@@ -28,6 +85,173 @@ class DeliveryHomePage extends StatefulWidget {
 class _DeliveryHomePageState extends State<DeliveryHomePage> {
   int _currentIndex = 0;
 
+  // **[NEW]** ตัวแปรเก็บข้อมูลไรเดอร์
+  String _riderName = "กำลังโหลด...";
+  String? _profileImageUrl;
+  bool _isLoadingData = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchRiderData(); // เริ่มต้นดึงข้อมูล
+  }
+
+  // **[NEW]** ฟังก์ชันดึง Stream ของเอกสารทั้งหมดใน Collection 'orders' ที่รอรับงาน
+  Stream<List<Order>> _fetchPendingOrdersStream() {
+    return FirebaseFirestore.instance
+        .collection('orders')
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Order.fromFirestore(doc)).toList());
+  }
+
+  // **[NEW]** ฟังก์ชันดึงข้อมูลไรเดอร์จาก Firestore
+  Future<void> _fetchRiderData() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _riderName = "กรุณาเข้าสู่ระบบใหม่";
+        _isLoadingData = false;
+      });
+      return;
+    }
+
+    try {
+      final riderDoc = await FirebaseFirestore.instance
+          .collection('riders')
+          .doc(user.uid)
+          .get();
+
+      if (riderDoc.exists) {
+        final data = riderDoc.data()!;
+        setState(() {
+          _riderName = data['rider_name'] ?? 'ไม่ระบุชื่อ';
+          _profileImageUrl = data['profile_image_url'];
+          _isLoadingData = false;
+        });
+      } else {
+        setState(() {
+          _riderName = "ไม่พบข้อมูลไรเดอร์";
+          _isLoadingData = false;
+        });
+      }
+    } catch (e) {
+      print("Error fetching rider data: $e");
+      setState(() {
+        _riderName = "เกิดข้อผิดพลาดในการโหลดข้อมูล";
+        _isLoadingData = false;
+      });
+    }
+  }
+
+  // ------------------------------------------
+  // **[FIX/NEW]** ฟังก์ชันตรวจสอบว่ามีงานที่กำลังทำอยู่หรือไม่
+  // ------------------------------------------
+  Future<bool> _checkOngoingOrder() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return false;
+
+    try {
+      // ตรวจสอบสถานะที่เป็นงานที่กำลังดำเนินการอยู่:
+      // 'accepted' (รับงานแล้ว กำลังจะไปรับของ)
+      // 'on_delivery' (รับของแล้ว กำลังนำส่ง)
+      // คุณสามารถเพิ่มสถานะอื่นๆ ที่นับว่างานยังไม่เสร็จได้
+      final ongoingOrders = await FirebaseFirestore.instance
+          .collection('orders')
+          .where('riderId', isEqualTo: user.uid) // ผูกกับ Rider ID ปัจจุบัน
+          .where('status', whereIn: ['accepted', 'on_delivery'])
+          .limit(1) // ต้องการแค่เอกสารเดียวเพื่อยืนยันว่ามีงานอยู่
+          .get();
+
+      return ongoingOrders.docs.isNotEmpty;
+    } catch (e) {
+      print("Error checking ongoing order: $e");
+      return false; // ในกรณีที่เกิดข้อผิดพลาด ให้ป้องกันไว้ก่อน
+    }
+  }
+
+  // ------------------------------------------
+  // **[FIX/UPDATE]** ฟังก์ชันรับงาน (เพิ่มการตรวจสอบงานที่กำลังดำเนินการอยู่)
+  // ------------------------------------------
+  Future<void> _acceptOrder(String orderId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณาเข้าสู่ระบบก่อนรับงาน')),
+      );
+      return;
+    }
+
+    // 1. ตรวจสอบงานที่กำลังทำอยู่
+    final hasOngoingOrder = await _checkOngoingOrder();
+
+    if (hasOngoingOrder) {
+      if (mounted) {
+        // แสดงข้อความแจ้งเตือนว่ามีงานที่ยังไม่เสร็จ
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('คุณมีงานที่ต้องไปส่งอยู่แล้ว กรุณาส่งงานปัจจุบันให้เสร็จก่อน'),
+            backgroundColor: locationPinRed, // ใช้สีแดงเพื่อให้เห็นชัด
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return; // ออกจากฟังก์ชัน ไม่รับงานใหม่
+    }
+
+    // 2. ถ้าไม่มีงานที่กำลังทำอยู่ ให้ดำเนินการรับงาน (ใช้ Transaction เพื่อป้องกัน Race Condition)
+    try {
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final orderRef =
+            FirebaseFirestore.instance.collection('orders').doc(orderId);
+        final orderSnapshot = await transaction.get(orderRef);
+
+        if (!orderSnapshot.exists) {
+          throw Exception("Order does not exist!");
+        }
+
+        final currentStatus =
+            (orderSnapshot.data()?['status'] ?? 'unknown') as String;
+
+        // ตรวจสอบสถานะอีกครั้งเพื่อยืนยันว่ายังเป็น 'pending'
+        if (currentStatus != 'pending') {
+          throw Exception(
+              "Order status is $currentStatus, not 'pending'. Job was taken.");
+        }
+
+        // อัปเดตสถานะ
+        transaction.update(orderRef, {
+          'status': 'accepted', // เปลี่ยนสถานะเป็นรับงานแล้ว
+          'riderId': user.uid, // ผูก Rider ID เข้ากับ Order
+          'acceptedAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('รับงาน $orderId เรียบร้อยแล้ว!')),
+        );
+        // นำทางไปยังหน้าสถานะการจัดส่ง
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const DeliveryStatusScreen()),
+        );
+      }
+    } catch (e) {
+      print("Error accepting order: $e");
+      if (mounted) {
+        final errorMessage = e.toString().contains('Job was taken')
+            ? 'งานนี้ถูกรับไปแล้วโดยไรเดอร์คนอื่น'
+            : 'เกิดข้อผิดพลาดในการรับงาน';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+    }
+  }
+
   void _onItemTapped(int index) async {
     if (index == 0) {
       // 🏠 หน้าแรก
@@ -38,13 +262,15 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       // 🏍️ หน้าข้อมูลการส่งของ
       await Navigator.push(
         context,
-        MaterialPageRoute(builder: (context) => const  DeliveryStatusScreen()),
+        // *** [FIX] Assumed DeliveryStatusScreen is defined in rider_status.dart ***
+        MaterialPageRoute(builder: (context) => const DeliveryStatusScreen()),
       );
       setState(() {
         _currentIndex = 0;
       });
     } else if (index == 2) {
       // 🚪 ออกจากระบบ
+      await FirebaseAuth.instance.signOut(); // **[FIX]** ทำการ Logout จาก Firebase
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (context) => const LoginPage()),
@@ -61,7 +287,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             _buildHeader(context), // ส่วนหัว
-            _buildBody(),          // เนื้อหา
+            _buildBody(), // เนื้อหา
           ],
         ),
       ),
@@ -93,21 +319,31 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          const CircleAvatar(
+          // **[UPDATE]** แสดงรูปโปรไฟล์หรือไอคอนโหลด
+          CircleAvatar(
             radius: 35,
             backgroundColor: Colors.white,
             child: CircleAvatar(
               radius: 32,
-              child: Icon(Icons.person, size: 50, color: darkBlue),
+              backgroundImage:
+                  _profileImageUrl != null ? NetworkImage(_profileImageUrl!) : null,
+              child: _profileImageUrl == null
+                  ? const Icon(
+                      Icons.person,
+                      size: 50,
+                      color: darkBlue,
+                    ) // Placeholder
+                  : null,
             ),
           ),
           const SizedBox(width: 15),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              const Text(
-                "สวัสดีคุณ ..........",
-                style: TextStyle(
+              // **[UPDATE]** แสดงชื่อไรเดอร์ที่ดึงมา
+              Text(
+                _isLoadingData ? "กำลังโหลด..." : "สวัสดีคุณ $_riderName",
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
@@ -119,7 +355,9 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
                 onTap: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const EditProfileScreen()),
+                    MaterialPageRoute(
+                      builder: (context) => const EditProfileScreen(),
+                    ),
                   );
                 },
                 child: const Text(
@@ -140,7 +378,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
   }
 
   // ----------------------
-  // 4. ส่วน Body
+  // 4. ส่วน Body (อัปเดตใช้ StreamBuilder)
   // ----------------------
   Widget _buildBody() {
     return Padding(
@@ -168,16 +406,56 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
             ),
           ),
           const SizedBox(height: 30),
-          _buildDeliveryCard(),
+
+          // **[UPDATE]** ใช้ StreamBuilder ดึงรายการ Orders จาก Firebase
+          StreamBuilder<List<Order>>(
+            stream: _fetchPendingOrdersStream(), // ดึงเฉพาะออเดอร์ที่รอรับงาน
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(
+                    child: CircularProgressIndicator(color: primaryGreen));
+              }
+              if (snapshot.hasError) {
+                return Center(
+                    child: Text("เกิดข้อผิดพลาดในการโหลด: ${snapshot.error}"));
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.only(top: 50.0),
+                    child: Text(
+                      "🎉 ไม่มีรายการจัดส่งใหม่ในขณะนี้ 🎉",
+                      style: TextStyle(fontSize: 16, color: Colors.grey),
+                    ),
+                  ),
+                );
+              }
+
+              final orders = snapshot.data!;
+              return ListView.builder(
+                shrinkWrap: true, // สำคัญเมื่ออยู่ใน SingleChildScrollView
+                physics: const NeverScrollableScrollPhysics(), // ปิดการ Scroll ของ ListView
+                itemCount: orders.length,
+                itemBuilder: (context, index) {
+                  final order = orders[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 20.0),
+                    // **[UPDATE]** ส่งข้อมูล Order เข้าไปใน Card
+                    child: _buildDeliveryCard(order),
+                  );
+                },
+              );
+            },
+          ),
         ],
       ),
     );
   }
 
   // ----------------------
-  // 5. การ์ดข้อมูลการจัดส่ง
+  // 5. การ์ดข้อมูลการจัดส่ง (ปรับให้แสดงแค่ที่อยู่ผู้ส่งและผู้รับ)
   // ----------------------
-  Widget _buildDeliveryCard() {
+  Widget _buildDeliveryCard(Order order) {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
@@ -188,34 +466,59 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
+            // ส่วนแสดงเฉพาะที่อยู่
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                // Icon และเส้น
                 Column(
                   children: <Widget>[
-                    const Icon(Icons.folder, color: packageBrown, size: 28),
+                    // ไอคอนจุดรับ (ผู้ส่ง)
+                    const Icon(Icons.outbox,
+                        color: primaryGreen, size: 28),
                     Container(
                       width: 2,
                       height: 40,
                       color: Colors.grey.shade400,
                     ),
-                    const Icon(Icons.location_on, color: locationPinRed, size: 28),
+                    // ไอคอนจุดส่ง (ผู้รับ)
+                    const Icon(Icons.location_on,
+                        color: locationPinRed, size: 28),
                   ],
                 ),
                 const SizedBox(width: 15),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const <Widget>[
-                      SizedBox(height: 3),
-                      Text(
-                        "คณะวิทยาการสารสนเทศ",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    children: <Widget>[
+                      // 1. ที่อยู่ผู้ส่ง (Pickup Location)
+                      const SizedBox(height: 3),
+                      const Text(
+                        "จุดรับ (ผู้ส่ง):",
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black54),
                       ),
-                      SizedBox(height: 35),
                       Text(
-                        "หอพักเมรพาลโซ่ ตึก 3",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                        order.pickupLocation,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 10),
+
+                      // 2. ที่อยู่ผู้รับ (Destination)
+                      const Text(
+                        "จุดส่ง (ผู้รับ):",
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black54),
+                      ),
+                      Text(
+                        order.destination,
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w500),
                       ),
                     ],
                   ),
@@ -225,14 +528,16 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                print("รับงานเรียบร้อย!");
+                // **[UPDATE]** เรียกฟังก์ชันรับงาน
+                _acceptOrder(order.orderId);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: secondaryGreen,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 30, vertical: 8),
                 elevation: 3,
               ),
               child: const Text(

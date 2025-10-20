@@ -6,8 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Import หน้าอื่นๆ ที่จำเป็นจากไฟล์ placeholder
 import 'Registration.dart';
 import 'all.dart';
-//import 'orderrider.dart';
-
+import 'package:ez_deliver_tracksure/pagerider/rider_home.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -33,25 +32,16 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      // --- ส่วนสำคัญ: ตรวจสอบและแปลงข้อมูลการล็อกอิน ---
+      // บังคับให้ถือว่าเป็นเบอร์โทรศัพท์ และแปลงเป็นอีเมลรูปแบบ 'เบอร์โทร@tracksure.app' เสมอ
       final loginInput = _loginController.text.trim();
-      String emailForAuth;
-
-      if (loginInput.contains('@')) {
-        // ถ้ามี @, ให้ถือว่าเป็นอีเมล (สำหรับ Rider)
-        emailForAuth = loginInput;
-      } else {
-        // ถ้าไม่มี @, ให้ถือว่าเป็นเบอร์โทร (สำหรับ Customer)
-        // และแปลงให้เป็นรูปแบบอีเมลที่ใช้สมัคร
-        emailForAuth = '$loginInput@tracksure.app';
-      }
-
+      final emailForAuth = '$loginInput@tracksure.app';
+      
       // 1. ตรวจสอบกับ Firebase Authentication
       final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailForAuth,
         password: _passwordController.text.trim(),
       );
-
+      
       final user = userCredential.user;
 
       if (user != null) {
@@ -75,11 +65,11 @@ class _LoginPageState extends State<LoginPage> {
               .get();
 
           if (riderDoc.exists) {
-            // ถ้าเจอใน 'riders' -> ไปยังหน้าสถานะของไรเดอร์
-            // Navigator.pushReplacement(
-            //   context,
-            //   MaterialPageRoute(builder: (context) => const StatusScreen()),
-            // );
+            // ถ้าเจอใน 'riders' -> ไปยังหน้าสถานะของไรเดอร์ (FIXED)
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const DeliveryHomePage()), // <--- เปลี่ยนไปใช้ OrderRiderScreen
+            );
           } else {
             // ไม่พบข้อมูลในทั้ง 2 collections
             _showErrorDialog('ไม่พบข้อมูลผู้ใช้งานในระบบ');
@@ -89,9 +79,9 @@ class _LoginPageState extends State<LoginPage> {
     } on FirebaseAuthException catch (e) {
       String message;
       if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        message = 'เบอร์โทรศัพท์/อีเมล หรือรหัสผ่านไม่ถูกต้อง';
+        message = 'เบอร์โทรศัพท์ หรือรหัสผ่านไม่ถูกต้อง'; 
       } else if (e.code == 'invalid-email') {
-        message = 'รูปแบบเบอร์โทรศัพท์หรืออีเมลไม่ถูกต้อง';
+        message = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง'; 
       } else {
         message = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
       }
@@ -172,12 +162,11 @@ class _LoginPageState extends State<LoginPage> {
                       TextField(
                         controller: _loginController,
                         style: GoogleFonts.prompt(),
-                        keyboardType: TextInputType.emailAddress,
+                        keyboardType: TextInputType.phone, 
                         decoration: InputDecoration(
-                          // --- ส่วนที่ปรับปรุง ---
-                          labelText: 'เบอร์โทรศัพท์ / อีเมล',
+                          labelText: 'เบอร์โทรศัพท์',
                           labelStyle: GoogleFonts.prompt(color: Colors.green[800]),
-                          prefixIcon: Icon(Icons.person, color: Colors.green[800]),
+                          prefixIcon: Icon(Icons.phone, color: Colors.green[800]), 
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),

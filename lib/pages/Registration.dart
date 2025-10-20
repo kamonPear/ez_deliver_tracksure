@@ -22,7 +22,7 @@ class RegistrationPage extends StatefulWidget {
 class _RegistrationPageState extends State<RegistrationPage> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
-  final _emailController = TextEditingController();
+  // final _emailController = TextEditingController(); // *** ถูกลบออก ***
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -75,12 +75,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
     setState(() => _isLoading = true);
 
     try {
-      String emailForAuth;
-      if (_userType == 'ผู้ใช้') {
-        emailForAuth = '${_phoneController.text.trim()}@tracksure.app';
-      } else {
-        emailForAuth = _emailController.text.trim();
-      }
+      // *** เปลี่ยน logic การสร้าง emailForAuth: ใช้เบอร์โทรศัพท์สร้าง email สำหรับทุกประเภทผู้ใช้ ***
+      // ทำให้ไม่ต้องมีช่องกรอกอีเมลสำหรับ Rider อีกต่อไป
+      final phoneTrimmed = _phoneController.text.trim();
+      final emailForAuth = '$phoneTrimmed@tracksure.app'; 
 
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
@@ -124,6 +122,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           Map<String, dynamic> riderData = {
             'rider_name': _usernameController.text.trim(),
             'rider_phone': _phoneController.text.trim(),
+            // 'rider_email' : ถูกลบออกจากการเก็บข้อมูล
             'profile_image_url': profileImageUrl,
             'license_plate': _licensePlateController.text.trim(),
             'vehicle_image_url': vehicleImageUrl,
@@ -143,9 +142,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
       if (e.code == 'weak-password') {
         message = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
       } else if (e.code == 'email-already-in-use') {
-        message = 'อีเมลนี้มีผู้ใช้แล้ว หรือเบอร์โทรนี้เคยลงทะเบียนแล้ว';
+        // ข้อความนี้อาจจะเกิดได้ถ้ามีลูกค้าหรือไรเดอร์ใช้เบอร์เดียวกัน
+        message = 'เบอร์โทรนี้เคยลงทะเบียนแล้ว'; 
       } else if (e.code == 'invalid-email') {
-        message = 'รูปแบบอีเมลไม่ถูกต้อง';
+        message = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง (ไม่ควรเกิดขึ้น)';
       }
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -270,13 +270,14 @@ class _RegistrationPageState extends State<RegistrationPage> {
                                 'ชื่อ-สกุล',
                                 Icons.person,
                               ),
-                              if (_userType == 'ไรเดอร์')
-                                _buildTextField(
-                                  _emailController,
-                                  'อีเมล',
-                                  Icons.email,
-                                  keyboardType: TextInputType.emailAddress,
-                                ),
+                              // *** ลบช่องกรอกอีเมลสำหรับไรเดอร์ออก ***
+                              // if (_userType == 'ไรเดอร์')
+                              //   _buildTextField(
+                              //     _emailController,
+                              //     'อีเมล',
+                              //     Icons.email,
+                              //     keyboardType: TextInputType.emailAddress,
+                              //   ),
                               _buildTextField(
                                 _phoneController,
                                 'เบอร์โทรศัพท์',
@@ -425,10 +426,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
           if (value == null || value.isEmpty) {
             return 'กรุณากรอก$label';
           }
-          if (label == 'อีเมล' &&
-              !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-            return 'กรุณากรอกอีเมลให้ถูกต้อง';
-          }
+          // if (label == 'อีเมล' && // *** ลบเงื่อนไขการตรวจสอบอีเมล เพราะไม่มีช่องกรอกอีเมลแล้ว ***
+          //     !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+          //   return 'กรุณากรอกอีเมลให้ถูกต้อง';
+          // }
           return null;
         },
       ),
@@ -568,7 +569,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   @override
   void dispose() {
     _usernameController.dispose();
-    _emailController.dispose();
+    // _emailController.dispose(); // *** ถูกลบออก ***
     _addressController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
