@@ -6,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // Import หน้าอื่นๆ ที่จำเป็นจากไฟล์ placeholder
 import 'Registration.dart';
 import 'all.dart';
-import 'package:ez_deliver_tracksure/pagerider/rider_home.dart';
+import 'package:ez_deliver_tracksure/pagerider/rider_home.dart'; //6165156
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
