@@ -1,20 +1,13 @@
-import 'all.dart';
-import 'Registration.dart';
-import 'orderrider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// --- สร้างหน้าจำลองขึ้นมาเพื่อทดสอบการทำงาน ---
-class UserHomeScreen extends StatelessWidget {
-  const UserHomeScreen({super.key});
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(appBar: AppBar(title: const Text("User's Home Page")));
-  }
-}
-// ---------------------------------------------
+// Import หน้าอื่นๆ ที่จำเป็นจากไฟล์ placeholder
+import 'Registration.dart';
+import 'all.dart';
+import 'orderrider.dart';
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -24,28 +17,23 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // เปลี่ยนชื่อ Controller ให้สื่อความหมายมากขึ้น
   final _loginController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordObscured = true;
   bool _isLoading = false;
 
   Future<void> _signIn() async {
-   // if (_loginController.text.isEmpty || _passwordController.text.isEmpty) {
-     // _showErrorDialog('กรุณากรอกข้อมูลให้ครบถ้วน');
-    //  return;
-   // }
+    if (_loginController.text.isEmpty || _passwordController.text.isEmpty) {
+      _showErrorDialog('กรุณากรอกข้อมูลให้ครบถ้วน');
+      return;
+    }
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // =======================================================
-      // ==> ส่วนที่แก้ไข <==
-      //
-      // ตรวจสอบว่าสิ่งที่ผู้ใช้กรอกเป็นอีเมลหรือเบอร์โทร
-      // =======================================================
+      // --- ส่วนสำคัญ: ตรวจสอบและแปลงข้อมูลการล็อกอิน ---
       final loginInput = _loginController.text.trim();
       String emailForAuth;
 
@@ -58,7 +46,7 @@ class _LoginPageState extends State<LoginPage> {
         emailForAuth = '$loginInput@tracksure.app';
       }
 
-      // 1. ตรวจสอบกับ Firebase Authentication ด้วยอีเมลที่ได้มา
+      // 1. ตรวจสอบกับ Firebase Authentication
       final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: emailForAuth,
         password: _passwordController.text.trim(),
@@ -74,7 +62,7 @@ class _LoginPageState extends State<LoginPage> {
             .get();
 
         if (customerDoc.exists) {
-          // ถ้าเจอใน 'customers'
+          // ถ้าเจอใน 'customers' -> ไปยังหน้า Home ของผู้ใช้
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const HomeScreen()),
@@ -87,12 +75,13 @@ class _LoginPageState extends State<LoginPage> {
               .get();
 
           if (riderDoc.exists) {
-            // ถ้าเจอใน 'riders'
+            // ถ้าเจอใน 'riders' -> ไปยังหน้าสถานะของไรเดอร์
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const StatusScreen()),
             );
           } else {
+            // ไม่พบข้อมูลในทั้ง 2 collections
             _showErrorDialog('ไม่พบข้อมูลผู้ใช้งานในระบบ');
           }
         }
@@ -183,9 +172,10 @@ class _LoginPageState extends State<LoginPage> {
                       TextField(
                         controller: _loginController,
                         style: GoogleFonts.prompt(),
-                        keyboardType: TextInputType.text, // รับได้ทั้งตัวหนังสือและตัวเลข
+                        keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
-                          labelText: 'เบอร์โทรศัพท์',
+                          // --- ส่วนที่ปรับปรุง ---
+                          labelText: 'เบอร์โทรศัพท์ / อีเมล',
                           labelStyle: GoogleFonts.prompt(color: Colors.green[800]),
                           prefixIcon: Icon(Icons.person, color: Colors.green[800]),
                           border: OutlineInputBorder(
@@ -194,11 +184,6 @@ class _LoginPageState extends State<LoginPage> {
                           focusedBorder: OutlineInputBorder(
                             borderSide:
                                 const BorderSide(color: Colors.green, width: 2),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide:
-                                const BorderSide(color: Colors.grey, width: 1),
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
@@ -233,11 +218,6 @@ class _LoginPageState extends State<LoginPage> {
                                 const BorderSide(color: Colors.green, width: 2),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          enabledBorder: OutlineInputBorder(
-                            borderSide:
-                                const BorderSide(color: Colors.grey, width: 1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -245,7 +225,7 @@ class _LoginPageState extends State<LoginPage> {
                         alignment: Alignment.centerRight,
                         child: TextButton(
                           onPressed: () {
-                            // เพิ่ม Logic สำหรับลืมรหัสผ่าน
+                            // TODO: Implement forgot password logic
                           },
                           child: Text(
                             'ลืมรหัสผ่าน?',
@@ -320,4 +300,3 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 }
-

@@ -1,27 +1,75 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'top_bar.dart'; // ใช้ TopBar ที่ import มา
-import 'bottom_bar.dart'; // ใช้ BottomBar ที่ import มา
-import 'all.dart'; // Import ที่ไม่จำเป็น แต่เก็บไว้ตามโค้ดเดิม
+import 'top_bar.dart';
+import 'bottom_bar.dart';
+// import 'all.dart'; // This import seems unused
 
-class ShippingOrderScreen extends StatelessWidget {
+// 1. Convert to StatefulWidget
+class ShippingOrderScreen extends StatefulWidget {
   const ShippingOrderScreen({Key? key}) : super(key: key);
 
-  // **กำหนดสีหลักที่เห็นในรูปภาพ**
-  static const Color primaryGreen = Color(0xFF00C853);
-  static const Color accentColor = Color(0xFF42A5F5); // สีฟ้าสำหรับขอบ Input
+  @override
+  State<ShippingOrderScreen> createState() => _ShippingOrderScreenState();
+}
 
-  // **แก้ไข: เพิ่ม currentIndex เป็นค่าคงที่สำหรับหน้านี้**
-  // สมมติว่าหน้านี้ตรงกับ Index 0 ('หน้าแรก')
-  static const int currentIndex = 0; 
+class _ShippingOrderScreenState extends State<ShippingOrderScreen> {
+  // 2. Add state variables for loading and user data
+  bool _isLoading = true;
+  Map<String, dynamic>? _userData;
+
+  // Define constants inside the State class
+  static const Color primaryGreen = Color(0xFF00C853);
+  static const Color accentColor = Color(0xFF42A5F5);
+  static const int currentIndex = 0;
+
+  // 3. Add initState and data fetching logic
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(user.uid)
+          .get();
+
+      if (mounted) {
+        if (docSnapshot.exists) {
+          setState(() {
+            _userData = docSnapshot.data();
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      print("Error fetching user data: $e");
+    }
+  }
+
 
   // ***************************************************************
   // *********************** HELPER WIDGETS ************************
   // ***************************************************************
 
-  // 1. ข้อมูลผู้ส่ง/ผู้รับ Card
-  Widget _buildSenderInfoCard() {
+  // 4. Modify this card to accept user data
+  Widget _buildSenderInfoCard(Map<String, dynamic>? userData) {
     return Card(
-      margin: EdgeInsets.zero, // ลบ margin เริ่มต้นของ Card
+      margin: EdgeInsets.zero,
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       child: Padding(
@@ -29,29 +77,29 @@ class ShippingOrderScreen extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // รูป Doraemon เล็ก
-            ClipOval(
-              child: Image.network(
-                'https://placehold.co/40x40/ffffff/000000?text=Dora', 
-                width: 40,
-                height: 40,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => 
-                    const Icon(Icons.person_outline, size: 40, color: primaryGreen),
-              ),
+            // User Profile Image
+            CircleAvatar(
+              radius: 20,
+              backgroundColor: Colors.grey.shade200,
+              backgroundImage: (userData?['profile_image_url'] != null)
+                  ? NetworkImage(userData!['profile_image_url'])
+                  : null,
+              child: (userData?['profile_image_url'] == null)
+                  ? const Icon(Icons.person, color: primaryGreen)
+                  : null,
             ),
             const SizedBox(width: 15),
-            
-            // รายละเอียด
+
+            // User Details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text('ชื่อ : ................', style: TextStyle(fontSize: 14)),
-                  SizedBox(height: 4),
-                  Text('เบอร์โทร : 123 456 8900', style: TextStyle(fontSize: 14)),
-                  SizedBox(height: 4),
-                  Text('ที่อยู่ : หอพักเมฆพาลสไลซอ', style: TextStyle(fontSize: 14)),
+                children: [
+                  Text('ชื่อ : ${userData?['customer_name'] ?? '...'}', style: const TextStyle(fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text('เบอร์โทร : ${userData?['customer_phone'] ?? '...'}', style: const TextStyle(fontSize: 14)),
+                  const SizedBox(height: 4),
+                  Text('ที่อยู่ : ${userData?['customer_address'] ?? '...'}', style: const TextStyle(fontSize: 14)),
                 ],
               ),
             ),
@@ -61,15 +109,14 @@ class ShippingOrderScreen extends StatelessWidget {
     );
   }
 
-  // 2. ปุ่ม Action Button (แนบข้อมูล/เพิ่มข้อมูล)
-  Widget _buildActionButton({
+  // Other helper widgets remain the same
+   Widget _buildActionButton({
     required String text,
     required Color color,
     required VoidCallback onPressed,
   }) {
     return Center(
       child: Container(
-        // ปรับเป็นความกว้างเต็มพื้นที่ padding
         width: double.infinity, 
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8.0),
@@ -90,7 +137,7 @@ class ShippingOrderScreen extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8.0),
             ),
-            elevation: 0, // ลบเงาซ้ำซ้อน
+            elevation: 0,
           ),
           child: Text(
             text,
@@ -105,11 +152,9 @@ class ShippingOrderScreen extends StatelessWidget {
     );
   }
 
-  // 3. ส่วนแสดงรูปภาพและปุ่มอัปโหลด
-  Widget _buildImageAndActionSection() {
+   Widget _buildImageAndActionSection() {
     return Column(
       children: [
-        // กล่องแสดงรูปสินค้า (ใช้ Icon/Image Placeholder)
         Container(
           width: 120,
           height: 120,
@@ -127,16 +172,13 @@ class ShippingOrderScreen extends StatelessWidget {
             ],
           ),
           child: const Center(
-            // Icon กล่องพัสดุ
             child: Icon(Icons.inventory_2_outlined, size: 80, color: Color(0xFFD3A867)), 
           ),
         ),
 
-        // ปุ่มอัปโหลด/ถ่ายรูป
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // ปุ่ม "อัปโหลดรูปสินค้า"
             _buildSmallActionButton(
               icon: Icons.add_circle_outline,
               text: 'อัปโหลดรูปสินค้า',
@@ -145,7 +187,6 @@ class ShippingOrderScreen extends StatelessWidget {
               },
             ),
             const SizedBox(width: 15),
-            // ปุ่ม "ถ่ายรูปสินค้า"
             _buildSmallActionButton(
               icon: Icons.camera_alt_outlined,
               text: 'ถ่ายรูปสินค้า',
@@ -159,8 +200,7 @@ class ShippingOrderScreen extends StatelessWidget {
     );
   }
 
-  // 4. ปุ่มเล็กสำหรับอัปโหลด/ถ่ายรูป
-  Widget _buildSmallActionButton({
+   Widget _buildSmallActionButton({
     required IconData icon,
     required String text,
     required VoidCallback onPressed,
@@ -198,13 +238,12 @@ class ShippingOrderScreen extends StatelessWidget {
     );
   }
 
-  // 5. ช่องกรอกรายละเอียดสินค้า (Text Area)
-  Widget _buildDescriptionTextField() {
+   Widget _buildDescriptionTextField() {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8.0),
-        border: Border.all(color: accentColor), // **ขอบสีฟ้าตามรูปภาพ**
+        border: Border.all(color: accentColor),
         boxShadow: [
           BoxShadow(
             color: Colors.grey.withOpacity(0.1),
@@ -226,25 +265,39 @@ class ShippingOrderScreen extends StatelessWidget {
     );
   }
 
+
   @override
   Widget build(BuildContext context) {
-    // ----------------------------------------------------------------------
-    // ส่วนหลักของ Build Method
-    // ----------------------------------------------------------------------
     return Scaffold(
-      backgroundColor: Colors.white, 
-      
+      backgroundColor: Colors.white,
       body: Column(
-        // ใช้ Column เพื่อวาง TopBar ไว้ด้านบนสุดของ Body
         children: [
-          // ------------------------------------------------
-          // 1. Header (TopBar)
-          // ------------------------------------------------
-          const TopBar(), // ใช้ Widget TopBar ที่ import มาสำหรับส่วนหัว
+          // 5. Dynamically build the TopBar
+          _isLoading
+              ? Container(
+                  height: 250, // Match your TopBar's approximate height
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF07AA7C), Color(0xFF11598D)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                       borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(20),
+                          bottomRight: Radius.circular(20),
+                        ),
+                    ),
+                  child: const Center(
+                      child: CircularProgressIndicator(color: Colors.white)),
+                )
+              : TopBar(
+                  userName: _userData?['customer_name'] ?? 'ผู้ใช้',
+                  profileImageUrl: _userData?['profile_image_url'],
+                  userAddress: _userData?['customer_address'] ?? 'ไม่มีที่อยู่',
+                ),
 
-          // ------------------------------------------------
-          // 2. Content ส่วนที่เหลือ (Scrollable)
-          // ------------------------------------------------
+          // Content Area
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
@@ -253,11 +306,10 @@ class ShippingOrderScreen extends StatelessWidget {
                 children: <Widget>[
                   const SizedBox(height: 15),
 
-                  // ข้อมูลผู้ส่ง/ผู้รับ (Card สีขาว)
-                  _buildSenderInfoCard(),
+                  // 6. Pass user data to the sender info card
+                  _buildSenderInfoCard(_userData),
                   const SizedBox(height: 20),
 
-                  // ปุ่ม "แนบข้อมูลสินค้าที่จะจัดส่ง"
                   _buildActionButton(
                     text: 'แนบข้อมูลสินค้าที่จะจัดส่ง',
                     color: primaryGreen,
@@ -267,11 +319,9 @@ class ShippingOrderScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 25),
 
-                  // ช่องสำหรับรูปภาพและปุ่มอัปโหลด/ถ่ายรูป
                   _buildImageAndActionSection(),
                   const SizedBox(height: 20),
 
-                  // รายละเอียดสินค้า (Text Area)
                   const Text(
                     'รายละเอียดสินค้า :',
                     style: TextStyle(
@@ -283,8 +333,7 @@ class ShippingOrderScreen extends StatelessWidget {
                   const SizedBox(height: 8),
                   _buildDescriptionTextField(),
                   const SizedBox(height: 30),
-                  
-                  // ปุ่ม "เพิ่มข้อมูลสินค้า"
+
                   _buildActionButton(
                     text: 'เพิ่มข้อมูลสินค้า',
                     color: primaryGreen,
@@ -299,15 +348,12 @@ class ShippingOrderScreen extends StatelessWidget {
           ),
         ],
       ),
-      
-      // ------------------------------------------------
-      // 3. Bottom Bar (Navigation)
-      // ------------------------------------------------
       bottomNavigationBar: BottomBar(
-        currentIndex: currentIndex, 
+        currentIndex: currentIndex,
         onItemSelected: (index) {
           debugPrint('BottomBar tapped at index $index');
-        }, 
+          // Add navigation logic here if needed
+        },
       ),
     );
   }

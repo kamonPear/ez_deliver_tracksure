@@ -1,33 +1,95 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'top_bar.dart';
 import 'bottom_bar.dart';
 
-
-class Products extends StatelessWidget {
+// 1. เปลี่ยนเป็น StatefulWidget
+class Products extends StatefulWidget {
   const Products({super.key});
+
+  @override
+  State<Products> createState() => _ProductsState();
+}
+
+class _ProductsState extends State<Products> {
+  // 2. เพิ่ม State สำหรับจัดการข้อมูล
+  bool _isLoading = true;
+  Map<String, dynamic>? _userData; // สำหรับ TopBar
+  List<QueryDocumentSnapshot> _orders = []; // สำหรับเก็บรายการออเดอร์
+
+  // 3. เพิ่ม initState และฟังก์ชันดึงข้อมูล
+  @override
+  void initState() {
+    super.initState();
+    _fetchData();
+  }
+
+  // ฟังก์ชันสำหรับดึงทั้งข้อมูลผู้ใช้และข้อมูลออเดอร์
+  Future<void> _fetchData() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      // ดึงข้อมูลผู้ใช้สำหรับ TopBar
+      final userDocFuture = FirebaseFirestore.instance
+          .collection('customers')
+          .doc(user.uid)
+          .get();
+
+      // ดึงข้อมูลออเดอร์ของผู้ใช้
+      // !!! หมายเหตุ: ผมสมมติว่า collection ชื่อ 'orders' และมี field 'customerId'
+      // !!! คุณอาจจะต้องเปลี่ยนชื่อให้ตรงกับโครงสร้าง Firestore ของคุณ
+      final ordersFuture = FirebaseFirestore.instance
+          .collection('orders')
+          .where('customerId', isEqualTo: user.uid)
+          .orderBy('createdAt', descending: true) // เรียงจากใหม่ไปเก่า
+          .get();
+
+      // รอให้ทั้งสองอย่างเสร็จสิ้น
+      final responses = await Future.wait([userDocFuture, ordersFuture]);
+      
+      final userDoc = responses[0] as DocumentSnapshot;
+      final ordersSnapshot = responses[1] as QuerySnapshot;
+
+      if (mounted) {
+        setState(() {
+          if (userDoc.exists) {
+            _userData = userDoc.data() as Map<String, dynamic>?;
+          }
+          _orders = ordersSnapshot.docs;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+      print("เกิดข้อผิดพลาดในการดึงข้อมูล Products: $e");
+    }
+  }
+
 
   // ฟังก์ชันสำหรับจัดการการแตะที่ BottomNavigationBar
   void _onItemTapped(BuildContext context, int index) {
-    if (index == 0) { // หากกดปุ่ม 'หน้าแรก' (Index 0)
-      // ใช้ Navigator.pop() เพื่อกลับไปยังหน้า HomeScreen ที่เรียกหน้านี้มา
+    if (index == 0) {
       Navigator.pop(context);
-    } else if (index == 2) { // ⭐ หากกดปุ่ม 'อื่นๆ' (Index 2)
-      // แสดง Snackbar/Toast เพื่อแจ้งเตือนว่าหน้านี้ยังไม่พร้อมใช้งาน
+    } else if (index == 2) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('หน้านี้กำลังอยู่ระหว่างการพัฒนา กรุณากลับมาใหม่ภายหลัง'),
-          duration: Duration(milliseconds: 1500), // แสดงผล 1.5 วินาที
+          content: Text('หน้านี้กำลังอยู่ระหว่างการพัฒนา'),
+          duration: Duration(milliseconds: 1500),
         ),
       );
     }
-    // ถ้า index เป็น 1 (Products) จะไม่ทำอะไร (เพราะอยู่หน้านี้อยู่แล้ว)
   }
-
-  // ฟังก์ชันสำหรับสร้างปุ่มเมนูแนวกว้าง (รูปข้างๆข้อความ)
+  
+  // Widget ต่างๆ (ส่วนใหญ่คงเดิม)
   Widget _buildWideMenuButton(String imagePath, String label) {
-    return Expanded( // ใช้ Expanded เพื่อให้ปุ่มขยายเต็มพื้นที่ที่เหลือ
+     return Expanded( 
       child: Container(
-        height: 100, // กำหนดความสูงของปุ่ม
+        height: 100,
         padding: const EdgeInsets.all(8.0),
         decoration: BoxDecoration(
           color: Colors.grey,
@@ -44,13 +106,11 @@ class Products extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // ต้องมั่นใจว่า asset path ถูกต้องและมีรูปภาพอยู่ในโฟลเดอร์ assets/image/
             Image.asset(imagePath, height: 50, errorBuilder: (context, error, stackTrace) {
-              // กรณีไม่พบรูปภาพ ให้แสดงไอคอนแทน
               return const Icon(Icons.info, size: 50, color: Colors.red);
             }), 
-            const SizedBox(width: 8), // ระยะห่างระหว่างรูปและข้อความ
-            Flexible( // ใช้ Flexible เพื่อป้องกันข้อความยาวเกินไป
+            const SizedBox(width: 8), 
+            Flexible( 
               child: Text(
                 label,
                 textAlign: TextAlign.center,
@@ -63,11 +123,10 @@ class Products extends StatelessWidget {
     );
   }
 
-  // ฟังก์ชันสร้างปุ่มเมนูสี่เหลี่ยมจัตุรัส
   Widget _buildSquareMenuButton(String imagePath, String label) {
-    return Expanded( // ใช้ Expanded เพื่อให้ปุ่มขยายเต็มพื้นที่ที่เหลือ
+     return Expanded( 
       child: Container(
-        height: 100, // กำหนดขนาดของปุ่ม
+        height: 100, 
         padding: const EdgeInsets.all(8.0),
         decoration: BoxDecoration(
           color: Colors.grey,
@@ -84,9 +143,7 @@ class Products extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // ต้องมั่นใจว่า asset path ถูกต้องและมีรูปภาพอยู่ในโฟลเดอร์ assets/image/
             Image.asset(imagePath, height: 40, errorBuilder: (context, error, stackTrace) {
-              // กรณีไม่พบรูปภาพ ให้แสดงไอคอนแทน
               return const Icon(Icons.info, size: 40, color: Colors.red);
             }), 
             const SizedBox(height: 8),
@@ -101,15 +158,14 @@ class Products extends StatelessWidget {
     );
   }
 
-  // ฟังก์ชันสำหรับสร้างช่องรายการสินค้าที่กำลังส่ง (Header Card)
   Widget _buildShippingListCard(BuildContext context) {
-    return Padding(
+     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Container(
-        width: double.infinity, // ขยายเต็มความกว้าง
+        width: double.infinity, 
         padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 15.0),
         decoration: BoxDecoration(
-          color: const Color(0xFF074F77), // สีน้ำเงินเข้ม
+          color: const Color(0xFF074F77), 
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
@@ -120,15 +176,12 @@ class Products extends StatelessWidget {
             ),
           ],
         ),
-        // ใช้ Stack เพื่อจัดให้ข้อความอยู่กึ่งกลางและให้ลูกศรอยู่ขวาสุด
         child: Stack( 
-          alignment: Alignment.center, // ให้เนื้อหาหลักอยู่กึ่งกลาง
+          alignment: Alignment.center, 
           children: [
-            // 1. ส่วน Icon และ Text (จัดให้อยู่ตรงกลาง)
             const Row(
-              mainAxisSize: MainAxisSize.min, // จำกัดความกว้างของ Row ให้เท่ากับเนื้อหา
+              mainAxisSize: MainAxisSize.min, 
               children: [
-                // ไอคอนรถบรรทุก (หรือไอคอนอื่นที่เกี่ยวข้อง)
                 Icon(Icons.local_shipping, color: Colors.white, size: 30),
                 SizedBox(width: 12),
                 Text(
@@ -142,7 +195,6 @@ class Products extends StatelessWidget {
               ],
             ),
             
-            // 2. ไอคอนลูกศรชี้ไปด้านขวา (จัดให้อยู่ทางขวาของ Container)
             const Align(
               alignment: Alignment.centerRight,
               child: Icon(Icons.arrow_forward_ios, color: Colors.white, size: 20),
@@ -153,18 +205,25 @@ class Products extends StatelessWidget {
     );
   }
 
-  // ** ฟังก์ชันสำหรับสร้างกล่องแสดงรายละเอียดการจัดส่งสินค้า (ปรับให้รูปภาพมีกรอบคงที่) **
-  Widget _buildDeliveryItemCard() {
-    // กำหนดสีเขียวสำหรับปุ่มและไอคอนที่เกี่ยวข้อง
-    const Color primaryColor = Color(0xFF07AA7C); 
+  // 4. แก้ไข _buildDeliveryItemCard ให้รับข้อมูลออเดอร์เข้ามา
+  Widget _buildDeliveryItemCard(QueryDocumentSnapshot orderDoc) {
+    const Color primaryColor = Color(0xFF07AA7C);
+    // ดึงข้อมูลจาก document (ใช้ .data() แล้ว cast เป็น Map)
+    final data = orderDoc.data() as Map<String, dynamic>;
+
+    // ใช้ ?? '...' เพื่อกำหนดค่า default ถ้าไม่มีข้อมูล
+    final pickupLocation = data['pickupLocation'] ?? 'ไม่มีข้อมูลต้นทาง';
+    final senderName = data['senderName'] ?? 'ไม่มีชื่อผู้ส่ง';
+    final destination = data['destination'] ?? 'ไม่มีข้อมูลปลายทาง';
+    final receiverName = data['receiverName'] ?? 'ไม่มีชื่อผู้รับ';
+    final logoUrl = data['logoUrl']; // อาจจะเป็น null
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
       child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(10.0), // ลด Padding ภายใน
+        padding: const EdgeInsets.all(10.0),
         decoration: BoxDecoration(
-          color: Colors.white, // สีพื้นหลังขาว
+          color: Colors.white,
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
@@ -176,107 +235,52 @@ class Products extends StatelessWidget {
           ],
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row( // ส่วนหลัก: รูปภาพด้านซ้าย รายละเอียดด้านขวา
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. รูปภาพ/โลโก้ (ด้านซ้าย)
-                // ใช้ Container กำหนดความสูง/กว้างคงที่ (90x90) เพื่อล็อกพื้นที่ของโลโก้
                 Container(
-                  width: 90, // ** เพิ่มความกว้างของพื้นที่โลโก้เป็น 90 **
-                  height: 90, // ** เพิ่มความสูงของพื้นที่โลโก้เป็น 90 **
-                  margin: const EdgeInsets.only(right: 15.0), // ระยะห่างด้านขวา
+                  width: 90,
+                  height: 90,
+                  margin: const EdgeInsets.only(right: 15.0),
                   child: Center(
-                    child: Image.asset('assets/image/logo.png', height: 130, width: 90, errorBuilder: (context, error, stackTrace) { 
-                      // รูปภาพ/ไอคอน ถูกเพิ่มขนาดเป็น 70x70 และอยู่ตรงกลางในกรอบ 90x90
-                      return const Icon(Icons.delivery_dining, color: primaryColor, size: 70);
-                    }),
+                    // แสดงรูปจาก URL ถ้ามี, ถ้าไม่มีแสดง Icon
+                    child: logoUrl != null
+                        ? Image.network(
+                            logoUrl,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.delivery_dining, color: primaryColor, size: 70),
+                          )
+                        : const Icon(Icons.delivery_dining, color: primaryColor, size: 70),
                   ),
                 ),
-
-                // 2. ส่วนรายละเอียดสถานที่รับ-ส่ง (ด้านขวา)
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // จุดรับสินค้า
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.location_on, color: Colors.red, size: 20),
-                          SizedBox(width: 5),
-                          Flexible(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'คณะวิทยาการสารสนเทศ',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600), // ขนาดตัวอักษรคงเดิม
-                                ),
-                                Text(
-                                  'ชื่อผู้ส่ง : ............',
-                                  style: TextStyle(fontSize: 14, color: Colors.black54), // ขนาดตัวอักษรคงเดิม
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 5), // ลดระยะห่างระหว่างจุดรับ-ส่ง
-                      // จุดส่งสินค้า
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(Icons.location_on, color: primaryColor, size: 20),
-                          SizedBox(width: 5),
-                          Flexible(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'หอพักเมธาพลาซ่าโซน ตึก 3',
-                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600), // ขนาดตัวอักษรคงเดิม
-                                ),
-                                Text(
-                                  'ชื่อผู้รับ : ............',
-                                  style: TextStyle(fontSize: 14, color: Colors.black54), // ขนาดตัวอักษรคงเดิม
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      _buildLocationRow(Icons.location_on, Colors.red, pickupLocation, senderName),
+                      const SizedBox(height: 5),
+                      _buildLocationRow(Icons.location_on, primaryColor, destination, receiverName),
                     ],
                   ),
                 ),
               ],
             ),
-            
-            // 3. ปุ่ม "รายละเอียด" ที่มุมล่างขวา
             Align(
               alignment: Alignment.bottomRight,
               child: Container(
-                margin: const EdgeInsets.only(top: 5), // ลด Margin ด้านบน
+                margin: const EdgeInsets.only(top: 5),
                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF90EE90), // สีเขียวอ่อนคล้ายในรูป
+                  color: const Color(0xFF90EE90),
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.green.withOpacity(0.4),
-                      spreadRadius: 1,
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       'รายละเอียด',
-                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16), // ขนาดตัวอักษรคงเดิม
+                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
                     ),
                     Icon(Icons.chevron_right, color: Colors.black, size: 20),
                   ],
@@ -289,144 +293,97 @@ class Products extends StatelessWidget {
     );
   }
 
-  // **********************************************
-  // ฟังก์ชันสร้าง item ย่อยในแบนเนอร์ (คงไว้ตามเดิม)
-  // **********************************************
-
-  Widget _buildPromoItem(String text) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE6F6F2),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.local_shipping, color: Color(0xFF07AA7C), size: 30),
-          const SizedBox(height: 4),
-          Text(
-            text,
-            textAlign: TextAlign.center, // จัดข้อความให้อยู่ตรงกลาง
-            style: const TextStyle(fontSize: 16, color: Colors.black87),
+  // ฟังก์ชันย่อยสำหรับแสดงแถวที่อยู่
+  Widget _buildLocationRow(IconData icon, Color color, String location, String name) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: color, size: 20),
+        const SizedBox(width: 5),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(location, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(name, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+            ],
           ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildPromoItem2(String text) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE6F6F2),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.motorcycle, color: Color(0xFF07AA7C), size: 30),
-          const SizedBox(height: 4),
-          Text(
-            text,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16, color: Colors.black87),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
-  Widget _buildPromoItem3(String text) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE6F6F2),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.archive, color: Color(0xFF07AA7C), size: 30),
-          const SizedBox(height: 4),
-          Text(
-            text,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16, color: Colors.black87),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // ส่วนที่ 1: บาร์ด้านบน
-            const TopBar(),
+      body: Column(
+        children: [
+          // 5. แสดง TopBar แบบไดนามิก
+          _isLoading
+              ? Container(
+                  height: 250,
+                  width: double.infinity,
+                   decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF07AA7C), Color(0xFF11598D)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                       borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(20),
+                          bottomRight: Radius.circular(20),
+                        ),
+                    ),
+                  child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+                )
+              : TopBar(
+                  userName: _userData?['customer_name'] ?? 'ผู้ใช้',
+                  profileImageUrl: _userData?['profile_image_url'],
+                  userAddress: _userData?['customer_address'] ?? 'ไม่มีที่อยู่',
+                ),
 
-            // ส่วนที่ 2: เมนูหลัก 
-            Padding(
-              padding: const EdgeInsets.all(16.0),
+          // 6. ทำให้เนื้อหาส่วนที่เหลือ scroll ได้
+          Expanded(
+            child: SingleChildScrollView(
               child: Column(
                 children: [
-                  // แถวบน (ปุ่มยาว 2 ปุ่ม)
-                  Row(
-                    children: [
-                      _buildWideMenuButton(
-                        'assets/image/order.png',
-                        'สั่งสินค้า',
+                  const SizedBox(height: 16),
+                  _buildShippingListCard(context),
+                  const SizedBox(height: 10),
+
+                  // 7. แสดงรายการออเดอร์แบบไดนามิก หรือแสดงข้อความถ้าไม่มีข้อมูล
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (_orders.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(32.0),
+                      child: Center(
+                        child: Text(
+                          'ไม่มีประวัติการส่งสินค้า',
+                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                        ),
                       ),
-                      const SizedBox(width: 10), // ระยะห่างระหว่างปุ่ม
-                      _buildWideMenuButton(
-                        'assets/image/order2.png',
-                        'สถานะพัสดุ',
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10), // ระยะห่างระหว่างแถว
-                  // แถวล่าง (ปุ่มสั้น 3 ปุ่ม)
-                  Row(
-                    children: [
-                      _buildSquareMenuButton(
-                        'assets/image/order3.png',
-                        'พัสดุที่ต้องรับ',
-                      ),
-                      const SizedBox(width: 10),
-                      _buildSquareMenuButton(
-                        'assets/image/order4.png',
-                        'คุยกับไรเดอร์',
-                      ),
-                      const SizedBox(width: 10),
-                      _buildSquareMenuButton(
-                        'assets/image/order5.png',
-                        'แพ็กเกจ',
-                      ),
-                    ],
-                  ),
+                    )
+                  else
+                    // สร้าง Widget สำหรับแต่ละออเดอร์ใน List
+                    Column(
+                      children: _orders.map((orderDoc) => _buildDeliveryItemCard(orderDoc)).toList(),
+                    ),
+                  
+                  const SizedBox(height: 20),
                 ],
               ),
             ),
-
-            // ** ส่วนที่ 3A: ช่องรายการสินค้าที่กำลังส่ง (Header Card) **
-            _buildShippingListCard(context),
-
-            // ** ส่วนที่ 3B: กล่องแสดงรายละเอียดการจัดส่งสินค้า **
-            _buildDeliveryItemCard(),
-            _buildDeliveryItemCard(),
-            _buildDeliveryItemCard(),
-
-            const SizedBox(height: 20), // เพิ่มระยะห่างด้านล่าง
-
-          ],
-        ),
+          ),
+        ],
       ),
-      // ส่วนที่ 4: บาร์ด้านล่าง (แก้ไขเพื่อส่งฟังก์ชัน _onItemTapped)
       bottomNavigationBar: BottomBar(
-        // แก้ไขให้ส่งค่า Index และ onItemSelected เข้าไป
-        currentIndex: 1, // กำหนด Index เป็น 1 (ประวัติการส่งสินค้า)
-        // ส่งฟังก์ชัน _onItemTapped และแนบ context เข้าไปเพื่อใช้ Navigator และ SnackBar
+        currentIndex: 1, // หน้านี้คือ index 1
         onItemSelected: (index) => _onItemTapped(context, index),
       ),
     );

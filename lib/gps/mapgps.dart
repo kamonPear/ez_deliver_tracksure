@@ -25,6 +25,9 @@ class _MapgpsState extends State<Mapgps> {
     super.initState();
     if (widget.initialLocation != null) {
       _getAddressFromLatLng(widget.initialLocation!);
+    } else {
+       // ถ้าไม่มีค่าเริ่มต้น ให้ตั้งค่าเป็นตำแหน่งกลางของประเทศไทย
+      _selectedLocation = const LatLng(13.7563, 100.5018);
     }
   }
 
@@ -111,8 +114,7 @@ class _MapgpsState extends State<Mapgps> {
                 FlutterMap(
                   mapController: _mapController,
                   options: MapOptions(
-                    initialCenter: widget.initialLocation ??
-                        const LatLng(13.7563, 100.5018),
+                    initialCenter: _selectedLocation!,
                     initialZoom: widget.initialLocation != null ? 16.0 : 12.0,
                     onTap: (tapPosition, point) {
                       if (!_isPopping) {

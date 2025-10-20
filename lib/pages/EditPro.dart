@@ -1,22 +1,78 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'top_bar.dart'; // ใช้ TopBar ที่ import มา
-import 'bottom_bar.dart'; // ใช้ BottomBar ที่ import มา
-// import 'password.dart'; // **อัปเดต: IMPORT ไฟล์ password.dart**
-// import 'proedit.dart';
+import 'top_bar.dart';
+import 'bottom_bar.dart';
+import 'login.dart'; // <-- 1. IMPORT หน้า Login สำหรับการ Logout
 
 // ------------------------------------------------------------------
-// Class EditPro ที่รวม TopBar และ BottomBar
+// 2. เปลี่ยนจาก StatelessWidget เป็น StatefulWidget
 // ------------------------------------------------------------------
-
-class EditPro extends StatelessWidget {
+class EditPro extends StatefulWidget {
   const EditPro({super.key});
 
-  // ***************************************************************
-  // ************* ฟังก์ชันตัวช่วยสำหรับสร้างปุ่มเมนู ***************
-  // ***************************************************************
+  @override
+  State<EditPro> createState() => _EditProState();
+}
 
-  // ปุ่มเมนูยาว 2 ปุ่มต่อแถว
+class _EditProState extends State<EditPro> {
+  // 3. เพิ่ม State สำหรับจัดการการโหลดและเก็บข้อมูลผู้ใช้
+  bool _isLoading = true;
+  Map<String, dynamic>? _userData;
+
+  // 4. เพิ่ม initState และฟังก์ชันดึงข้อมูล (เหมือนกับ HomeScreen)
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(user.uid)
+          .get();
+
+      if (mounted) {
+        if (docSnapshot.exists) {
+          setState(() {
+            _userData = docSnapshot.data();
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      print("Error fetching user data: $e");
+    }
+  }
+
+  // 5. เพิ่มฟังก์ชันสำหรับ Sign Out
+  Future<void> _signOut() async {
+    await FirebaseAuth.instance.signOut();
+    if (mounted) {
+      // กลับไปหน้า Login และลบหน้าทั้งหมดที่เคยเปิดมาก่อนหน้า
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (Route<dynamic> route) => false,
+      );
+    }
+  }
+
+  // ฟังก์ชันตัวช่วยต่างๆ (โค้ดเดิมของคุณ)
   Widget _buildWideMenuButton(String imagePath, String title) {
+    // ... โค้ดส่วนนี้เหมือนเดิม ...
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
       decoration: BoxDecoration(
@@ -55,9 +111,9 @@ class EditPro extends StatelessWidget {
     );
   }
 
-  // ปุ่มเมนูสั้น 3 ปุ่มต่อแถว
   Widget _buildSquareMenuButton(String imagePath, String title) {
-    return Container(
+    // ... โค้ดส่วนนี้เหมือนเดิม ...
+     return Container(
       padding: const EdgeInsets.symmetric(vertical: 15),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -94,13 +150,10 @@ class EditPro extends StatelessWidget {
     );
   }
 
-  // ***************************************************************
-  // ************* ฟังก์ชันตัวช่วยสำหรับสร้างปุ่มเมนูแบบรายการ *
-  // ***************************************************************
-  /// สร้างปุ่มเมนูแบบเต็มความกว้าง (List-style) สำหรับเมนูตั้งค่า
   Widget _buildListMenuItem(IconData icon, String title, Color iconColor, VoidCallback onTapAction) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10), // ระยะห่างด้านล่างระหว่างรายการ
+    // ... โค้ดส่วนนี้เหมือนเดิม ...
+      return Container(
+      margin: const EdgeInsets.only(bottom: 10), 
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -113,7 +166,7 @@ class EditPro extends StatelessWidget {
           ),
         ],
       ),
-      child: Material( // ใช้ Material/InkWell เพื่อเพิ่ม Feedback เมื่อกด
+      child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTapAction,
@@ -151,103 +204,91 @@ class EditPro extends StatelessWidget {
     );
   }
 
-  // ***************************************************************
-  // *********************** ส่วน Widget build **********************
-  // ***************************************************************
-
   @override
   Widget build(BuildContext context) {
-    // กำหนด index สำหรับหน้า Profile/EditPro
     const int currentIndex = 2;
-    // กำหนดสีเขียว/น้ำเงินที่ใช้สำหรับไอคอน (อ้างอิงจากภาพตัวอย่าง)
-    const Color primaryIconColor = Color(0xFF00B09A); 
-    // กำหนดสีแดงสำหรับออกจากระบบ
+    const Color primaryIconColor = Color(0xFF00B09A);
     const Color logoutIconColor = Colors.red;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      
-      // เปลี่ยนจาก Stack มาเป็น SingleChildScrollView > Column
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ส่วนที่ 1: บาร์ด้านบน
-            const TopBar(), // ใช้ TopBar ที่ import มา
+            // 6. เปลี่ยนการเรียกใช้ TopBar ให้เป็นแบบไดนามิก
+            _isLoading
+                ? Container(
+                    height: 250, // ความสูงเท่า TopBar
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF07AA7C), Color(0xFF11598D)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                       borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(20),
+                          bottomRight: Radius.circular(20),
+                        ),
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    ),
+                  )
+                : TopBar(
+                    userName: _userData?['customer_name'] ?? 'ผู้ใช้',
+                    profileImageUrl: _userData?['profile_image_url'],
+                    userAddress: _userData?['customer_address'] ?? 'ไม่มีที่อยู่',
+                  ),
 
-            // ส่วนที่ 2: เมนูหลัก (ใช้ GestureDetector เพื่อให้ปุ่มที่กำหนดมีฟังก์ชันการคลิก)
+            // ส่วนเมนู (เหมือนเดิม)
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // แถวบน (ปุ่มยาว 2 ปุ่ม)
                   Row(
                     children: [
-                      // ห่อด้วย Expanded และ GestureDetector
                       Expanded(
                         child: GestureDetector(
-                          onTap: () {
-                            // โค้ดสำหรับปุ่ม 'สั่งสินค้า'
-                            print('สั่งสินค้า clicked'); 
-                          },
+                          onTap: () => print('สั่งสินค้า clicked'),
                           child: _buildWideMenuButton(
-                            'assets/image/order.png',
-                            'สั่งสินค้า',
-                          ),
+                              'assets/image/order.png', 'สั่งสินค้า'),
                         ),
                       ),
-                      const SizedBox(width: 10), // ระยะห่างระหว่างปุ่ม
+                      const SizedBox(width: 10),
                       Expanded(
                         child: GestureDetector(
-                          onTap: () {
-                            // โค้ดสำหรับปุ่ม 'สถานะพัสดุ'
-                            print('สถานะพัสดุ clicked');
-                          },
+                          onTap: () => print('สถานะพัสดุ clicked'),
                           child: _buildWideMenuButton(
-                            'assets/image/order2.png',
-                            'สถานะพัสดุ',
-                          ),
+                              'assets/image/order2.png', 'สถานะพัสดุ'),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10), // ระยะห่างระหว่างแถว
-                  // แถวล่าง (ปุ่มสั้น 3 ปุ่ม)
+                  const SizedBox(height: 10),
                   Row(
                     children: [
-                      // ห่อด้วย Expanded และ GestureDetector
                       Expanded(
                         child: GestureDetector(
-                          onTap: () {
-                            print('พัสดุที่ต้องรับ clicked');
-                          },
+                          onTap: () => print('พัสดุที่ต้องรับ clicked'),
                           child: _buildSquareMenuButton(
-                            'assets/image/order3.png',
-                            'พัสดุที่ต้องรับ',
-                          ),
+                              'assets/image/order3.png', 'พัสดุที่ต้องรับ'),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: GestureDetector(
-                          onTap: () {
-                            print('คุยกับไรเดอร์ clicked');
-                          },
+                          onTap: () => print('คุยกับไรเดอร์ clicked'),
                           child: _buildSquareMenuButton(
-                            'assets/image/order4.png',
-                            'คุยกับไรเดอร์',
-                          ),
+                              'assets/image/order4.png', 'คุยกับไรเดอร์'),
                         ),
                       ),
                       const SizedBox(width: 10),
-                      Expanded(
+                       Expanded(
                         child: GestureDetector(
-                          onTap: () {
-                            print('ส่วนลดแพ็กเกจ clicked');
-                          },
+                          onTap: () => print('ส่วนลดแพ็กเกจ clicked'),
                           child: _buildSquareMenuButton(
-                            'assets/image/order5.png',
-                            'ส่วนลดแพ็กเกจ',
-                          ),
+                              'assets/image/order5.png', 'ส่วนลดแพ็กเกจ'),
                         ),
                       ),
                     ],
@@ -255,76 +296,47 @@ class EditPro extends StatelessWidget {
                 ],
               ),
             ),
-            
-            // ส่วนที่ 3: เมนูการตั้งค่าโปรไฟล์ใหม่
+
+            // ส่วนตั้งค่าโปรไฟล์
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
               child: Column(
                 children: [
-                  // 1. แก้ไขข้อมูลส่วนตัว
                   _buildListMenuItem(
-                    Icons.person_outline, 
+                    Icons.person_outline,
                     'แก้ไขข้อมูลส่วนตัว',
                     primaryIconColor,
-                    () {
-                      debugPrint('แก้ไขข้อมูลส่วนตัว clicked -> Navigate to ProEditScreen');
-                      // **โค้ดนำทางไปหน้า ProEditScreen**
-                      // Navigator.push(
-                      //   context,
-                      //   MaterialPageRoute(builder: (context) => const ProEditScreen()), // **อัปเดต: ใช้ ProEditScreen**
-                      // );
-                    },
+                    () => print('แก้ไขข้อมูลส่วนตัว clicked'),
                   ),
-                
                   _buildListMenuItem(
-                    Icons.lock_outline, 
+                    Icons.lock_outline,
                     'เปลี่ยนรหัสผ่าน',
                     primaryIconColor,
-                    () {
-                      debugPrint('เปลี่ยนรหัสผ่าน clicked -> Navigate to PasswordScreen');
-                      // **โค้ดนำทางไปหน้า PasswordScreen**
-                      // Navigator.push(
-                      //   context,
-                      //   MaterialPageRoute(builder: (context) => const ChangePasswordScreen()), // **อัปเดต: ใช้ PasswordScreen**
-                      // );
-                    },
+                    () => print('เปลี่ยนรหัสผ่าน clicked'),
                   ),
-                  // 3. ออกจากระบบ
+                  // 7. เรียกใช้ฟังก์ชัน _signOut() เมื่อกดปุ่ม
                   _buildListMenuItem(
-                    Icons.logout, 
+                    Icons.logout,
                     'ออกจากระบบ',
                     logoutIconColor,
-                    () {
-                      debugPrint('ออกจากระบบ clicked');
-                      // TODO: เพิ่มโค้ด Logout
-                    },
+                    _signOut, // <-- เรียกใช้ฟังก์ชันที่สร้างไว้
                   ),
-                  // เพิ่มระยะห่างด้านล่างอีกนิด เพื่อให้ BottomBar ไม่ติดเนื้อหาจนเกินไป
                   const SizedBox(height: 20),
                 ],
               ),
             ),
-            
           ],
         ),
       ),
-      
-      // 3. Bottom Bar (Navigation)
       bottomNavigationBar: BottomBar(
-        currentIndex: currentIndex, 
+        currentIndex: currentIndex,
         onItemSelected: (index) {
-          if (index == 0) {
-            // ไปหน้า Home (สมมติว่าเป็นหน้าแรกสุด)
+           if (index == 0) {
             Navigator.popUntil(context, (route) => route.isFirst); 
           } else if (index == 1) {
-            // โค้ดนำทางไปหน้า Products ถูกคอมเมนต์ออก เพราะคลาส Products ไม่มีในไฟล์นี้
-            debugPrint('Navigate to Products (Disabled: Products class is missing)');
-            // Navigator.push( 
-            // 	context,
-            // 	MaterialPageRoute(builder: (context) => const Products()), 
-            // );
+            debugPrint('Navigate to Products');
           }
-        }, 
+        },
       ),
     );
   }

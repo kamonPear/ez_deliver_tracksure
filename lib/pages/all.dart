@@ -1,9 +1,10 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'products.dart';
 import 'top_bar.dart';
 import 'bottom_bar.dart';
 
-// 1. เปลี่ยนจาก StatelessWidget เป็น StatefulWidget
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -12,34 +13,68 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  // 2. สร้างตัวแปร State เพื่อเก็บว่าเมนูไหนถูกเลือกอยู่ (เริ่มต้นที่ 0 คือหน้าแรก)
   int _selectedIndex = 0;
+  bool _isLoading = true;
+  Map<String, dynamic>? _userData;
 
-  // 3. สร้างฟังก์ชันเพื่อจัดการเมื่อมีการกดปุ่ม BottomBar
+  // <--- 1. ย้ายฟังก์ชันทั้งหมดออกมาให้อยู่ในระดับของ Class ครับ
+
+  @override
+  void initState() {
+    super.initState();
+    // เรียกใช้ฟังก์ชันดึงข้อมูลตอนที่ Widget ถูกสร้างครั้งแรกเท่านั้น
+    _fetchUserData();
+  }
+
+  Future<void> _fetchUserData() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // อาจจะดีกว่าถ้าส่งผู้ใช้กลับไปหน้า login หากไม่มี user
+      setState(() => _isLoading = false);
+      return;
+    }
+
+    try {
+      final docSnapshot = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(user.uid)
+          .get();
+
+      if (mounted) { // เช็คว่า widget ยังอยู่บนหน้าจอก่อนเรียก setState
+        if (docSnapshot.exists) {
+          setState(() {
+            _userData = docSnapshot.data();
+            _isLoading = false;
+          });
+        } else {
+          setState(() => _isLoading = false);
+          print("ไม่พบข้อมูลผู้ใช้ใน Firestore สำหรับ UID: ${user.uid}");
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+      print("เกิดข้อผิดพลาดในการดึงข้อมูล: $e");
+    }
+  }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
 
-    // เพิ่มเงื่อนไขการเปลี่ยนหน้า
     switch (index) {
       case 0:
         // ไม่ต้องทำอะไร เพราะนี่คือหน้า HomeScreen อยู่แล้ว
         break;
       case 1:
-        // ไปยังหน้าประวัติการส่งสินค้า (Products)
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const Products()),
         );
         break;
       case 2:
-        // ไปยังหน้าอื่นๆ (สมมติว่าคือหน้า EditPro)
-        // Navigator.push(
-        //   context,
-        //   MaterialPageRoute(builder: (context) => const EditPro()),
-        // );
-        // หรือแสดงข้อความถ้ายังไม่มีหน้านี้
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('หน้านี้ยังไม่พร้อมใช้งาน')),
         );
@@ -47,12 +82,11 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // ฟังก์ชันสำหรับสร้างปุ่มเมนูแต่ละอัน
-  // ฟังก์ชันสำหรับสร้างปุ่มเมนูแต่ละอัน (รูปข้างๆข้อความ)
+  // ฟังก์ชันสร้างปุ่มเมนูต่างๆ (โค้ดเดิมของคุณ)
   Widget _buildWideMenuButton(String imagePath, String label) {
     return Container(
-      width: 180, // กำหนดความกว้างของปุ่ม
-      height: 100, // กำหนดความสูงของปุ่ม
+      width: 180,
+      height: 100,
       padding: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         color: Colors.grey,
@@ -69,8 +103,8 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(imagePath, height: 50), // ใช้รูปไอคอนของคุณ
-          const SizedBox(width: 8), // ระยะห่างระหว่างรูปและข้อความ
+          Image.asset(imagePath, height: 50),
+          const SizedBox(width: 8),
           Text(
             label,
             textAlign: TextAlign.center,
@@ -81,11 +115,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ฟังก์ชันสร้างปุ่มสี่เหลี่ยม
   Widget _buildSquareMenuButton(String imagePath, String label) {
     return Container(
-      width: 118, // กำหนดขนาดของปุ่ม
-      height: 100, // กำหนดขนาดของปุ่ม
+      width: 118,
+      height: 100,
       padding: const EdgeInsets.all(8.0),
       decoration: BoxDecoration(
         color: Colors.grey,
@@ -102,7 +135,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(imagePath, height: 40), // ใช้รูปไอคอนของคุณ
+          Image.asset(imagePath, height: 40),
           const SizedBox(height: 8),
           Text(
             label,
@@ -121,31 +154,58 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            // ส่วนที่ 1: บาร์ด้านบน
-            const TopBar(),
+            // <--- 2. แก้ไขการเรียกใช้ TopBar ตรงนี้
+            _isLoading
+                ? Container(
+                    // สร้าง Container ที่มีขนาดเท่า TopBar เพื่อไม่ให้หน้าจอกระพริบตอนโหลด
+                    height: 250, // ปรับความสูงให้ใกล้เคียงกับ TopBar ของคุณ
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF07AA7C), Color(0xFF11598D)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                      ),
+                    ),
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                  )
+                : TopBar(
+                    // ส่งข้อมูลที่ดึงมาได้ไปให้ TopBar
+                    userName: _userData?['customer_name'] ?? 'ผู้ใช้',
+                    profileImageUrl: _userData?['profile_image_url'],
+                    userAddress: _userData?['customer_address'] ?? 'ไม่มีที่อยู่',
+                  ),
 
             // ส่วนที่ 2: เมนูหลัก
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  // แถวบน (ปุ่มยาว 2 ปุ่ม)
                   Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildWideMenuButton(
                         'assets/image/order.png',
                         'สั่งสินค้า',
                       ),
-                      const SizedBox(width: 10), // ระยะห่างระหว่างปุ่ม
+                      const SizedBox(width: 10),
                       _buildWideMenuButton(
                         'assets/image/order2.png',
                         'สถานะพัสดุ',
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10), // ระยะห่างระหว่างแถว
-                  // แถวล่าง (ปุ่มสั้น 3 ปุ่ม)
+                  const SizedBox(height: 10),
                   Row(
+                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       _buildSquareMenuButton(
                         'assets/image/order3.png',
@@ -167,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            // ส่วนที่ 3: แบนเนอร์โปรโมชัน
+            // ส่วนที่ 3: แบนเนอร์โปรโมชัน (เหมือนเดิม)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Container(
@@ -176,19 +236,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  // ใส่รูปพื้นหลังของแบนเนอร์ที่นี่
-                  // image: DecorationImage(
-                  //   image: AssetImage("assets/images/banner_bg.png"),
-                  //   fit: BoxFit.cover,
-                  // ),
                 ),
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.center, // Center the entire column
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Text(
+                     const Text(
                       'โปรส่งของ',
-                      textAlign: TextAlign.center, // Center the header text
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
@@ -199,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 8),
                     const Text(
                       'คุ้มสุดๆ',
-                      textAlign: TextAlign.center, // Center the header text
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 40,
                         fontWeight: FontWeight.bold,
@@ -209,7 +263,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 8),
                     RichText(
                       textAlign:
-                          TextAlign.center, // Center the RichText content
+                          TextAlign.center,
                       text: const TextSpan(
                         style: TextStyle(
                           fontFamily: 'Kanit',
@@ -234,14 +288,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 8),
                     const Text(
                       'เมื่อส่งภายในระยะทางที่กำหนด',
-                      textAlign: TextAlign.center, // Center the header text
+                      textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 20),
-                    // ส่วนไอคอนย่อย 3 อันด้านล่าง
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
@@ -255,20 +308,17 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            const SizedBox(height: 20), // เพิ่มระยะห่างด้านล่าง
+            const SizedBox(height: 20),
           ],
         ),
       ),
-      // ส่วนที่ 4: บาร์ด้านล่าง
-      // 4. แก้ไขการเรียกใช้ BottomBar ให้ถูกต้อง
       bottomNavigationBar: BottomBar(
         currentIndex: _selectedIndex,
-        onItemSelected: _onItemTapped, // <--- เติม _ เข้าไป
+        onItemSelected: _onItemTapped,
       ),
     );
   }
 
-  // ฟังก์ชันสร้าง item ย่อยในแบนเนอร์
   Widget _buildPromoItem(String text) {
     return Container(
       padding: const EdgeInsets.all(18),
@@ -289,7 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPromoItem2(String text) {
+   Widget _buildPromoItem2(String text) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -309,7 +359,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPromoItem3(String text) {
+   Widget _buildPromoItem3(String text) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
