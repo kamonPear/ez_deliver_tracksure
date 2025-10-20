@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'rider_top.dart';
-import 'rider_bottom_bar.dart';
+import '../pagerider/rider_bottom_bar.dart';
 import 'status_stepper.dart';
 
 class StatusScreen extends StatelessWidget {

@@ -194,7 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     children: [
                       _buildWideMenuButton(
                         'assets/image/order.png',
-                        'สั่งสินค้า',
+                        'ส่งสินค้า',
                       ),
                       const SizedBox(width: 10),
                       _buildWideMenuButton(

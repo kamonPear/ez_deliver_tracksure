@@ -1,7 +1,14 @@
 import 'package:flutter/material.dart';
 
 class StatusBottomBar extends StatelessWidget {
-  const StatusBottomBar({super.key});
+  final int currentIndex;
+  final Function(int)? onItemSelected;
+
+  const StatusBottomBar({
+    super.key,
+    required this.currentIndex,
+    this.onItemSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -28,13 +35,20 @@ class StatusBottomBar extends StatelessWidget {
             label: 'ออกจากระบบ',
           ),
         ],
-        currentIndex: 1, // ตั้งค่าให้ 'ข้อมูลการส่งของ' ถูกเลือก
+        currentIndex: currentIndex, // ✅ ใช้ค่าจากภายนอก
         selectedItemColor: Colors.white,
         unselectedItemColor: Colors.white.withOpacity(0.7),
         backgroundColor: Colors.transparent,
         elevation: 0,
         type: BottomNavigationBarType.fixed,
+        onTap: (index) {
+          if (onItemSelected != null) {
+            onItemSelected!(index); // ✅ ส่ง index กลับไปให้หน้า parent
+          }
+        },
       ),
     );
   }
 }
+
+
