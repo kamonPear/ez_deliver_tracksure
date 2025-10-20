@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'top_bar.dart';
 import 'bottom_bar.dart';
 
-// 1. เปลี่ยนเป็น StatefulWidget
 class Products extends StatefulWidget {
   const Products({super.key});
 
@@ -13,52 +12,56 @@ class Products extends StatefulWidget {
 }
 
 class _ProductsState extends State<Products> {
-  // 2. เพิ่ม State สำหรับจัดการข้อมูล
   bool _isLoading = true;
   Map<String, dynamic>? _userData; // สำหรับ TopBar
   List<QueryDocumentSnapshot> _orders = []; // สำหรับเก็บรายการออเดอร์
 
-  // 3. เพิ่ม initState และฟังก์ชันดึงข้อมูล
   @override
   void initState() {
     super.initState();
     _fetchData();
   }
 
-  // ฟังก์ชันสำหรับดึงทั้งข้อมูลผู้ใช้และข้อมูลออเดอร์
+  // ⭐️ [แก้ไขแล้ว] เพิ่ม Code สำหรับ Debugging โดยเฉพาะ
   Future<void> _fetchData() async {
     User? user = FirebaseAuth.instance.currentUser;
+
+    // --- จุดตรวจสอบที่ 1: ดู UID ของคนที่ล็อกอินอยู่ ---
+    print('--- DEBUGGING ---');
+    print('Current User UID from Auth: ${user?.uid}');
+    print('-----------------');
+
     if (user == null) {
       if (mounted) setState(() => _isLoading = false);
       return;
     }
 
     try {
-      // ดึงข้อมูลผู้ใช้สำหรับ TopBar
-      final userDocFuture = FirebaseFirestore.instance
-          .collection('customers')
-          .doc(user.uid)
-          .get();
+      // โค้ดจะใช้ UID นี้ไปหาเอกสาร
+      final userDocFuture =
+          FirebaseFirestore.instance.collection('customers').doc(user.uid).get();
 
-      // ดึงข้อมูลออเดอร์ของผู้ใช้
-      // !!! หมายเหตุ: ผมสมมติว่า collection ชื่อ 'orders' และมี field 'customerId'
-      // !!! คุณอาจจะต้องเปลี่ยนชื่อให้ตรงกับโครงสร้าง Firestore ของคุณ
       final ordersFuture = FirebaseFirestore.instance
           .collection('orders')
           .where('customerId', isEqualTo: user.uid)
-          .orderBy('createdAt', descending: true) // เรียงจากใหม่ไปเก่า
+          .orderBy('createdAt', descending: true)
           .get();
 
-      // รอให้ทั้งสองอย่างเสร็จสิ้น
       final responses = await Future.wait([userDocFuture, ordersFuture]);
-      
       final userDoc = responses[0] as DocumentSnapshot;
       final ordersSnapshot = responses[1] as QuerySnapshot;
 
       if (mounted) {
         setState(() {
           if (userDoc.exists) {
+            // ✅ จุดตรวจสอบที่ 2: ถ้าหาเอกสารเจอ, ดูข้อมูลข้างใน
             _userData = userDoc.data() as Map<String, dynamic>?;
+            print('✅ SUCCESS: Found document! Data is: $_userData');
+          } else {
+            // ❌ จุดตรวจสอบที่ 3: ถ้าหาเอกสารไม่เจอ
+            print(
+                '❌ ERROR: Document with ID "${user.uid}" was NOT FOUND in "customers" collection.');
+            _userData = null; // เคลียร์ข้อมูลเก่าทิ้ง (สำคัญ!)
           }
           _orders = ordersSnapshot.docs;
           _isLoading = false;
@@ -84,88 +87,76 @@ class _ProductsState extends State<Products> {
       );
     }
   }
-  
-  // Widget ต่างๆ (ส่วนใหญ่คงเดิม)
-  Widget _buildWideMenuButton(String imagePath, String label) {
-     return Expanded( 
-      child: Container(
-        height: 100,
-        padding: const EdgeInsets.all(8.0),
-        decoration: BoxDecoration(
-          color: Colors.grey,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.white.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            ),
-          ],
+
+  // --- WIDGETS สำหรับแสดงผล ---
+
+  // [ใหม่] Widget สำหรับสร้าง Card ของลูกค้าแต่ละคน
+  Widget _buildCustomerCard(DocumentSnapshot customerDoc) {
+    final data = customerDoc.data() as Map<String, dynamic>;
+    final String customerName = data['customer_name'] ?? 'ไม่มีชื่อ';
+    final String customerPhone = data['customer_phone'] ?? 'ไม่มีเบอร์โทร';
+    final String? profileImageUrl = data['profile_image_url'];
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: ListTile(
+        leading: CircleAvatar(
+          radius: 25,
+          backgroundColor: Colors.grey[200],
+          backgroundImage:
+              profileImageUrl != null ? NetworkImage(profileImageUrl) : null,
+          child: profileImageUrl == null
+              ? const Icon(Icons.person, color: Colors.grey, size: 30)
+              : null,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(imagePath, height: 50, errorBuilder: (context, error, stackTrace) {
-              return const Icon(Icons.info, size: 50, color: Colors.red);
-            }), 
-            const SizedBox(width: 8), 
-            Flexible( 
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 20),
-              ),
-            ),
-          ],
-        ),
+        title: Text(customerName,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(customerPhone),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       ),
     );
   }
 
-  Widget _buildSquareMenuButton(String imagePath, String label) {
-     return Expanded( 
-      child: Container(
-        height: 100, 
-        padding: const EdgeInsets.all(8.0),
-        decoration: BoxDecoration(
-          color: Colors.grey,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.white.withOpacity(0.1),
-              spreadRadius: 1,
-              blurRadius: 5,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(imagePath, height: 40, errorBuilder: (context, error, stackTrace) {
-              return const Icon(Icons.info, size: 40, color: Colors.red);
-            }), 
-            const SizedBox(height: 8),
-            Text(
-              label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16),
-            ),
-          ],
-        ),
-      ),
+  // [ใหม่ & แก้ไขแล้ว] Widget สำหรับแสดงรายชื่อลูกค้าทั้งหมด
+  Widget _buildAllCustomersList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('customers').snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(child: Text('ไม่มีข้อมูลลูกค้า'));
+        }
+        final customers = snapshot.data!.docs;
+
+        // 💥 แก้ไขโดยใช้ ListView.builder พร้อมคุณสมบัติที่จำเป็น
+        return ListView.builder(
+          // 1. ทำให้ ListView สูงเท่ากับเนื้อหา
+          shrinkWrap: true,
+          // 2. ปิดการ scroll ของ ListView นี้ (ให้ SingleChildScrollView จัดการแทน)
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: customers.length,
+          itemBuilder: (context, index) {
+            return _buildCustomerCard(customers[index]);
+          },
+        );
+      },
     );
   }
 
+  // Widget _buildShippingListCard (โค้ดเดิม)
   Widget _buildShippingListCard(BuildContext context) {
-     return Padding(
+    return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Container(
-        width: double.infinity, 
+        width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 15.0),
         decoration: BoxDecoration(
-          color: const Color(0xFF074F77), 
+          color: const Color(0xFF074F77),
           borderRadius: BorderRadius.circular(15),
           boxShadow: [
             BoxShadow(
@@ -176,11 +167,11 @@ class _ProductsState extends State<Products> {
             ),
           ],
         ),
-        child: Stack( 
-          alignment: Alignment.center, 
+        child: const Stack(
+          alignment: Alignment.center,
           children: [
-            const Row(
-              mainAxisSize: MainAxisSize.min, 
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Icons.local_shipping, color: Colors.white, size: 30),
                 SizedBox(width: 12),
@@ -194,10 +185,13 @@ class _ProductsState extends State<Products> {
                 ),
               ],
             ),
-            
-            const Align(
+            Align(
               alignment: Alignment.centerRight,
-              child: Icon(Icons.arrow_forward_ios, color: Colors.white, size: 20),
+              child: Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
           ],
         ),
@@ -205,18 +199,16 @@ class _ProductsState extends State<Products> {
     );
   }
 
-  // 4. แก้ไข _buildDeliveryItemCard ให้รับข้อมูลออเดอร์เข้ามา
+  // Widget _buildDeliveryItemCard (โค้ดเดิม)
   Widget _buildDeliveryItemCard(QueryDocumentSnapshot orderDoc) {
     const Color primaryColor = Color(0xFF07AA7C);
-    // ดึงข้อมูลจาก document (ใช้ .data() แล้ว cast เป็น Map)
     final data = orderDoc.data() as Map<String, dynamic>;
 
-    // ใช้ ?? '...' เพื่อกำหนดค่า default ถ้าไม่มีข้อมูล
     final pickupLocation = data['pickupLocation'] ?? 'ไม่มีข้อมูลต้นทาง';
     final senderName = data['senderName'] ?? 'ไม่มีชื่อผู้ส่ง';
     final destination = data['destination'] ?? 'ไม่มีข้อมูลปลายทาง';
     final receiverName = data['receiverName'] ?? 'ไม่มีชื่อผู้รับ';
-    final logoUrl = data['logoUrl']; // อาจจะเป็น null
+    final logoUrl = data['logoUrl'];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
@@ -244,23 +236,40 @@ class _ProductsState extends State<Products> {
                   height: 90,
                   margin: const EdgeInsets.only(right: 15.0),
                   child: Center(
-                    // แสดงรูปจาก URL ถ้ามี, ถ้าไม่มีแสดง Icon
                     child: logoUrl != null
                         ? Image.network(
                             logoUrl,
                             errorBuilder: (context, error, stackTrace) =>
-                                const Icon(Icons.delivery_dining, color: primaryColor, size: 70),
+                                const Icon(
+                              Icons.delivery_dining,
+                              color: primaryColor,
+                              size: 70,
+                            ),
                           )
-                        : const Icon(Icons.delivery_dining, color: primaryColor, size: 70),
+                        : const Icon(
+                            Icons.delivery_dining,
+                            color: primaryColor,
+                            size: 70,
+                          ),
                   ),
                 ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildLocationRow(Icons.location_on, Colors.red, pickupLocation, senderName),
+                      _buildLocationRow(
+                        Icons.location_on,
+                        Colors.red,
+                        pickupLocation,
+                        senderName,
+                      ),
                       const SizedBox(height: 5),
-                      _buildLocationRow(Icons.location_on, primaryColor, destination, receiverName),
+                      _buildLocationRow(
+                        Icons.location_on,
+                        primaryColor,
+                        destination,
+                        receiverName,
+                      ),
                     ],
                   ),
                 ),
@@ -270,7 +279,10 @@ class _ProductsState extends State<Products> {
               alignment: Alignment.bottomRight,
               child: Container(
                 margin: const EdgeInsets.only(top: 5),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF90EE90),
                   borderRadius: BorderRadius.circular(20),
@@ -280,7 +292,11 @@ class _ProductsState extends State<Products> {
                   children: [
                     Text(
                       'รายละเอียด',
-                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16),
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
                     ),
                     Icon(Icons.chevron_right, color: Colors.black, size: 20),
                   ],
@@ -293,8 +309,9 @@ class _ProductsState extends State<Products> {
     );
   }
 
-  // ฟังก์ชันย่อยสำหรับแสดงแถวที่อยู่
-  Widget _buildLocationRow(IconData icon, Color color, String location, String name) {
+  // Widget _buildLocationRow (โค้ดเดิม)
+  Widget _buildLocationRow(
+      IconData icon, Color color, String location, String name) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -304,8 +321,17 @@ class _ProductsState extends State<Products> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(location, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              Text(name, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+              Text(
+                location,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              Text(
+                name,
+                style: const TextStyle(fontSize: 14, color: Colors.black54),
+              ),
             ],
           ),
         ),
@@ -313,69 +339,85 @@ class _ProductsState extends State<Products> {
     );
   }
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: Column(
         children: [
-          // 5. แสดง TopBar แบบไดนามิก
+          // ส่วน TopBar
           _isLoading
               ? Container(
                   height: 250,
                   width: double.infinity,
-                   decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF07AA7C), Color(0xFF11598D)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                       borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(20),
-                          bottomRight: Radius.circular(20),
-                        ),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF07AA7C), Color(0xFF11598D)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                  child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(20),
+                      bottomRight: Radius.circular(20),
+                    ),
+                  ),
+                  child: const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  ),
                 )
               : TopBar(
                   userName: _userData?['customer_name'] ?? 'ผู้ใช้',
                   profileImageUrl: _userData?['profile_image_url'],
-                  userAddress: _userData?['customer_address'] ?? 'ไม่มีที่อยู่',
+                  userAddress:
+                      _userData?['customer_address'] ?? 'ไม่มีที่อยู่',
                 ),
 
-          // 6. ทำให้เนื้อหาส่วนที่เหลือ scroll ได้
+          // ส่วนเนื้อหาที่ scroll ได้
           Expanded(
             child: SingleChildScrollView(
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start, // จัดชิดซ้าย
                 children: [
                   const SizedBox(height: 16),
+
+                  // --- ส่วนที่ 1: แสดงรายการส่งของ (Orders) ---
                   _buildShippingListCard(context),
                   const SizedBox(height: 10),
-
-                  // 7. แสดงรายการออเดอร์แบบไดนามิก หรือแสดงข้อความถ้าไม่มีข้อมูล
                   if (_isLoading)
-                    const Padding(
+                    const Center(
+                        child: Padding(
                       padding: EdgeInsets.all(32.0),
-                      child: Center(child: CircularProgressIndicator()),
-                    )
+                      child: CircularProgressIndicator(),
+                    ))
                   else if (_orders.isEmpty)
-                    const Padding(
+                    const Center(
+                        child: Padding(
                       padding: EdgeInsets.all(32.0),
-                      child: Center(
-                        child: Text(
-                          'ไม่มีประวัติการส่งสินค้า',
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
-                        ),
-                      ),
-                    )
+                      child: Text('ไม่มีประวัติการส่งสินค้า',
+                          style: TextStyle(fontSize: 18, color: Colors.grey)),
+                    ))
                   else
-                    // สร้าง Widget สำหรับแต่ละออเดอร์ใน List
                     Column(
-                      children: _orders.map((orderDoc) => _buildDeliveryItemCard(orderDoc)).toList(),
+                      children: _orders
+                          .map((orderDoc) => _buildDeliveryItemCard(orderDoc))
+                          .toList(),
                     ),
-                  
-                  const SizedBox(height: 20),
+
+                  const SizedBox(height: 24), // เพิ่มระยะห่าง
+
+                  // --- ส่วนที่ 2: แสดงรายชื่อลูกค้าทั้งหมด (Customers) ---
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text(
+                      'ลูกค้าทั้งหมด',
+                      style:
+                          TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _buildAllCustomersList(), // ⭐️ เรียกใช้ Widget ที่แก้ไขแล้ว
+
+                  const SizedBox(height: 20), // Padding ด้านล่างสุด
                 ],
               ),
             ),
@@ -383,7 +425,7 @@ class _ProductsState extends State<Products> {
         ],
       ),
       bottomNavigationBar: BottomBar(
-        currentIndex: 1, // หน้านี้คือ index 1
+        currentIndex: 1,
         onItemSelected: (index) => _onItemTapped(context, index),
       ),
     );

@@ -89,7 +89,7 @@ class _LoginPageState extends State<LoginPage> {
     } on FirebaseAuthException catch (e) {
       String message;
       if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        message = 'เบอร์โทรศัพท์/อีเมล หรือรหัสผ่านไม่ถูกต้อง';
+        message = 'เบอร์โทรศัพท์ หรือ รหัสผ่านไม่ถูกต้อง';
       } else if (e.code == 'invalid-email') {
         message = 'รูปแบบเบอร์โทรศัพท์หรืออีเมลไม่ถูกต้อง';
       } else {
@@ -175,7 +175,7 @@ class _LoginPageState extends State<LoginPage> {
                         keyboardType: TextInputType.emailAddress,
                         decoration: InputDecoration(
                           // --- ส่วนที่ปรับปรุง ---
-                          labelText: 'เบอร์โทรศัพท์ / อีเมล',
+                          labelText: 'เบอร์โทรศัพท์',
                           labelStyle: GoogleFonts.prompt(color: Colors.green[800]),
                           prefixIcon: Icon(Icons.person, color: Colors.green[800]),
                           border: OutlineInputBorder(

@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'bottom_bar.dart';
 
-
 class PreOrderScreen extends StatefulWidget {
   const PreOrderScreen({Key? key}) : super(key: key);
 
@@ -85,10 +84,11 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
             }
             if (_userData?['customer_address'] != null &&
                 _userData!['customer_address'].toString().isNotEmpty) {
-              final mainAddressString =
-                  _userData!['customer_address'].toString();
-              final isDuplicate =
-                  tempAddresses.any((addr) => addr['address'] == mainAddressString);
+              final mainAddressString = _userData!['customer_address']
+                  .toString();
+              final isDuplicate = tempAddresses.any(
+                (addr) => addr['address'] == mainAddressString,
+              );
               if (!isDuplicate) {
                 tempAddresses.insert(0, {
                   'name': 'ที่อยู่หลัก',
@@ -161,13 +161,16 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
           });
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('พบข้อมูลผู้รับ'), backgroundColor: Colors.green),
+              content: Text('พบข้อมูลผู้รับ'),
+              backgroundColor: Colors.green,
+            ),
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-                content: Text('ไม่พบข้อมูลผู้รับจากเบอร์โทรนี้'),
-                backgroundColor: Colors.red),
+              content: Text('ไม่พบข้อมูลผู้รับจากเบอร์โทรนี้'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -175,8 +178,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('เกิดข้อผิดพลาดในการค้นหา: $e'),
-              backgroundColor: Colors.red),
+            content: Text('เกิดข้อผิดพลาดในการค้นหา: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -188,9 +192,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
 
   Future<void> _addItemToList() async {
     if (_selectedSenderAddress == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณาเลือกที่อยู่ผู้ส่ง')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('กรุณาเลือกที่อยู่ผู้ส่ง')));
       return;
     }
     if (_receiverData == null) {
@@ -200,9 +204,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
       return;
     }
     if (_productImage == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณาเพิ่มรูปภาพสินค้า')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('กรุณาเพิ่มรูปภาพสินค้า')));
       return;
     }
     if (_descriptionController.text.isEmpty) {
@@ -215,8 +219,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      final imageUrl =
-          await _imageUploadService.uploadImageToCloudinary(_productImage!);
+      final imageUrl = await _imageUploadService.uploadImageToCloudinary(
+        _productImage!,
+      );
 
       final newItem = {
         'productImageUrl': imageUrl,
@@ -234,14 +239,16 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('เพิ่มรายการสำเร็จ'), backgroundColor: Colors.green),
+            content: Text('เพิ่มรายการสำเร็จ'),
+            backgroundColor: Colors.green,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('เกิดข้อผิดพลาด: $e')));
       }
     } finally {
       if (mounted) {
@@ -272,7 +279,8 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
         final orderData = {
           'customerId': user.uid,
           'customerName': _userData?['customer_name'] ?? 'ไม่มีชื่อ',
-          'pickupLocation': _selectedSenderAddress!['address'] ?? 'ไม่มีที่อยู่',
+          'pickupLocation':
+              _selectedSenderAddress!['address'] ?? 'ไม่มีที่อยู่',
           'productImageUrl': item['productImageUrl'],
           'productDescription': item['productDescription'],
           'status': 'pending',
@@ -290,8 +298,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('ส่งออเดอร์ทั้งหมดสำเร็จ!'),
-              backgroundColor: Colors.green),
+            content: Text('ส่งออเดอร์ทั้งหมดสำเร็จ!'),
+            backgroundColor: Colors.green,
+          ),
         );
         Navigator.of(context).pop();
       }
@@ -333,15 +342,19 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                 }).toList(),
                 const Divider(),
                 ListTile(
-                  leading: const Icon(Icons.add_location_alt_outlined,
-                      color: primaryGreen),
-                  title: const Text('เพิ่มที่อยู่ใหม่',
-                      style: TextStyle(color: primaryGreen)),
+                  leading: const Icon(
+                    Icons.add_location_alt_outlined,
+                    color: primaryGreen,
+                  ),
+                  title: const Text(
+                    'เพิ่มที่อยู่ใหม่',
+                    style: TextStyle(color: primaryGreen),
+                  ),
                   onTap: () {
                     Navigator.of(dialogContext).pop();
                     _showAddNewAddressDialog();
                   },
-                )
+                ),
               ],
             ),
           ),
@@ -375,7 +388,8 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                   TextFormField(
                     controller: _newAddressNameController,
                     decoration: const InputDecoration(
-                        labelText: 'ชื่อที่อยู่ (เช่น บ้าน, ที่ทำงาน)'),
+                      labelText: 'ชื่อที่อยู่ (เช่น บ้าน, ที่ทำงาน)',
+                    ),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'กรุณาใส่ชื่อที่อยู่';
@@ -421,8 +435,8 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                         .collection('customers')
                         .doc(user.uid)
                         .update({
-                      'addresses': FieldValue.arrayUnion([newAddress]),
-                    });
+                          'addresses': FieldValue.arrayUnion([newAddress]),
+                        });
 
                     if (mounted) {
                       setState(() {
@@ -434,16 +448,18 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
 
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text('เพิ่มที่อยู่ใหม่สำเร็จ'),
-                            backgroundColor: Colors.green),
+                          content: Text('เพิ่มที่อยู่ใหม่สำเร็จ'),
+                          backgroundColor: Colors.green,
+                        ),
                       );
                     }
                   } catch (e) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                            content: Text('เกิดข้อผิดพลาดในการบันทึก: $e'),
-                            backgroundColor: Colors.red),
+                          content: Text('เกิดข้อผิดพลาดในการบันทึก: $e'),
+                          backgroundColor: Colors.red,
+                        ),
                       );
                     }
                   }
@@ -461,7 +477,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
   // ***************************************************************
 
   Widget _buildSenderInfoCard(
-      Map<String, dynamic>? userData, Map<String, dynamic>? selectedAddress) {
+    Map<String, dynamic>? userData,
+    Map<String, dynamic>? selectedAddress,
+  ) {
     return Card(
       margin: EdgeInsets.zero,
       elevation: 3,
@@ -474,9 +492,10 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
             const Text(
               'ข้อมูลผู้ส่ง',
               style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: primaryGreen),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: primaryGreen,
+              ),
             ),
             const Divider(),
             Row(
@@ -485,11 +504,13 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: Colors.grey.shade200,
-                  backgroundImage: (userData?['profile_image_url'] != null &&
+                  backgroundImage:
+                      (userData?['profile_image_url'] != null &&
                           userData!['profile_image_url'].isNotEmpty)
                       ? NetworkImage(userData['profile_image_url'])
                       : null,
-                  child: (userData?['profile_image_url'] == null ||
+                  child:
+                      (userData?['profile_image_url'] == null ||
                           userData!['profile_image_url'].isEmpty)
                       ? const Icon(Icons.person, color: primaryGreen)
                       : null,
@@ -499,15 +520,20 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('ชื่อ : ${userData?['customer_name'] ?? '...'}',
-                          style: const TextStyle(fontSize: 14)),
-                      const SizedBox(height: 4),
-                      Text('เบอร์โทร : ${userData?['customer_phone'] ?? '...'}',
-                          style: const TextStyle(fontSize: 14)),
+                      Text(
+                        'ชื่อ : ${userData?['customer_name'] ?? '...'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
                       const SizedBox(height: 4),
                       Text(
-                          'ที่อยู่ : ${selectedAddress?['address'] ?? 'กรุณาเลือกที่อยู่'}',
-                          style: const TextStyle(fontSize: 14)),
+                        'เบอร์โทร : ${userData?['customer_phone'] ?? '...'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'ที่อยู่ : ${selectedAddress?['address'] ?? 'กรุณาเลือกที่อยู่'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
                     ],
                   ),
                 ),
@@ -520,7 +546,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                 onPressed: _showSelectSenderAddressDialog,
                 child: const Text('เปลี่ยนที่อยู่'),
               ),
-            )
+            ),
           ],
         ),
       ),
@@ -534,9 +560,10 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
         const Text(
           'ค้นหาข้อมูลผู้รับ',
           style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF333333)),
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFF333333),
+          ),
         ),
         const SizedBox(height: 8),
         Container(
@@ -563,8 +590,10 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                     hintText: 'กรอกเบอร์โทรผู้รับ...',
                     prefixIcon: Icon(Icons.search),
                     border: InputBorder.none,
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                   ),
                 ),
               ),
@@ -572,9 +601,10 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                   ? const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16.0),
                       child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2)),
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                     )
                   : IconButton(
                       icon: const Icon(Icons.send, color: primaryGreen),
@@ -603,9 +633,10 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
             const Text(
               'ข้อมูลผู้รับ',
               style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: primaryGreen),
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: primaryGreen,
+              ),
             ),
             const Divider(),
             const SizedBox(height: 8),
@@ -615,11 +646,13 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                 CircleAvatar(
                   radius: 20,
                   backgroundColor: Colors.grey.shade200,
-                  backgroundImage: (receiverData['profile_image_url'] != null &&
+                  backgroundImage:
+                      (receiverData['profile_image_url'] != null &&
                           receiverData['profile_image_url'].isNotEmpty)
                       ? NetworkImage(receiverData['profile_image_url'])
                       : null,
-                  child: (receiverData['profile_image_url'] == null ||
+                  child:
+                      (receiverData['profile_image_url'] == null ||
                           receiverData['profile_image_url'].isEmpty)
                       ? const Icon(Icons.person_pin_circle, color: primaryGreen)
                       : null,
@@ -629,15 +662,20 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('ชื่อ : ${receiverData['customer_name'] ?? '...'}',
-                          style: const TextStyle(fontSize: 14)),
-                      const SizedBox(height: 4),
-                      Text('เบอร์โทร : ${receiverData['customer_phone'] ?? '...'}',
-                          style: const TextStyle(fontSize: 14)),
+                      Text(
+                        'ชื่อ : ${receiverData['customer_name'] ?? '...'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
                       const SizedBox(height: 4),
                       Text(
-                          'ที่อยู่ : ${receiverData['customer_address'] ?? '...'}',
-                          style: const TextStyle(fontSize: 14)),
+                        'เบอร์โทร : ${receiverData['customer_phone'] ?? '...'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'ที่อยู่ : ${receiverData['customer_address'] ?? '...'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
                     ],
                   ),
                 ),
@@ -649,11 +687,12 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     );
   }
 
-  Widget _buildActionButton(
-      {required String text,
-      required Color color,
-      required VoidCallback onPressed,
-      bool isSubmitting = false}) {
+  Widget _buildActionButton({
+    required String text,
+    required Color color,
+    required VoidCallback onPressed,
+    bool isSubmitting = false,
+  }) {
     return Center(
       child: Container(
         width: double.infinity,
@@ -713,7 +752,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                 color: Colors.grey.withOpacity(0.3),
                 blurRadius: 5,
                 offset: const Offset(0, 2),
-              )
+              ),
             ],
           ),
           child: ClipRRect(
@@ -721,8 +760,11 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
             child: _productImage != null
                 ? Image.file(_productImage!, fit: BoxFit.cover)
                 : const Center(
-                    child: Icon(Icons.inventory_2_outlined,
-                        size: 80, color: Color(0xFFD3A867)),
+                    child: Icon(
+                      Icons.inventory_2_outlined,
+                      size: 80,
+                      color: Color(0xFFD3A867),
+                    ),
                   ),
           ),
         ),
@@ -746,10 +788,11 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     );
   }
 
-  Widget _buildSmallActionButton(
-      {required IconData icon,
-      required String text,
-      required VoidCallback onPressed}) {
+  Widget _buildSmallActionButton({
+    required IconData icon,
+    required String text,
+    required VoidCallback onPressed,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: primaryGreen,
@@ -777,8 +820,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
         style: TextButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
           backgroundColor: primaryGreen,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.0),
+          ),
         ),
       ),
     );
@@ -824,9 +868,10 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
           const Text(
             'รายการสินค้าที่จะจัดส่ง',
             style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF333333)),
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF333333),
+            ),
           ),
           const SizedBox(height: 12),
           ListView.separated(
@@ -897,7 +942,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                 });
               },
               tooltip: 'ลบรายการนี้',
-            )
+            ),
           ],
         ),
       ),
@@ -917,7 +962,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               padding: const EdgeInsets.symmetric(
-                  horizontal: 20.0, vertical: 10.0),
+                horizontal: 20.0,
+                vertical: 10.0,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
@@ -946,9 +993,20 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                     onPressed: _addItemToList, // <-- เปลี่ยนฟังก์ชัน
                     isSubmitting: _isSubmitting,
                   ),
-                  
+
                   // --- ส่วนรายการสินค้าที่เพิ่มเข้ามา ---
-                  
+                  _buildAddedItemsList(),
+
+                  const SizedBox(height: 30),
+                  // --- ปุ่มยืนยันสุดท้าย ---
+                  if (_addedItems.isNotEmpty)
+                    _buildActionButton(
+                      text: 'ยืนยันการส่งชิ้นค้า (${_addedItems.length})',
+                      color: primaryGreen,
+                      onPressed: _submitAllOrders,
+                      isSubmitting: _isSubmitting,
+                    ),
+
                   const SizedBox(height: 30),
                 ],
               ),
@@ -964,5 +1022,3 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     );
   }
 }
-
-

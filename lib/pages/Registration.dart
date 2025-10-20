@@ -22,7 +22,7 @@ class RegistrationPage extends StatefulWidget {
 class _RegistrationPageState extends State<RegistrationPage> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
-  final _emailController = TextEditingController();
+  // final _emailController = TextEditingController(); // ลบ Controller ของอีเมลออก
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -75,18 +75,14 @@ class _RegistrationPageState extends State<RegistrationPage> {
     setState(() => _isLoading = true);
 
     try {
-      String emailForAuth;
-      if (_userType == 'ผู้ใช้') {
-        emailForAuth = '${_phoneController.text.trim()}@tracksure.app';
-      } else {
-        emailForAuth = _emailController.text.trim();
-      }
+      // แก้ไข: ให้ทั้งผู้ใช้และไรเดอร์ใช้อีเมลจากเบอร์โทรศัพท์
+      String emailForAuth = '${_phoneController.text.trim()}@tracksure.app';
 
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-            email: emailForAuth,
-            password: _passwordController.text.trim(),
-          );
+              email: emailForAuth,
+              password: _passwordController.text.trim(),
+            );
 
       User? user = userCredential.user;
 
@@ -270,13 +266,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                                 'ชื่อ-สกุล',
                                 Icons.person,
                               ),
-                              if (_userType == 'ไรเดอร์')
-                                _buildTextField(
-                                  _emailController,
-                                  'อีเมล',
-                                  Icons.email,
-                                  keyboardType: TextInputType.emailAddress,
-                                ),
+                              // ลบช่องกรอกอีเมลสำหรับไรเดอร์ออกจาก UI
                               _buildTextField(
                                 _phoneController,
                                 'เบอร์โทรศัพท์',
@@ -402,11 +392,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
   }
 
   Widget _buildTextField(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    TextInputType? keyboardType,
-  }) {
+  TextEditingController controller,
+  String label,
+  IconData icon, {
+  TextInputType? keyboardType,
+}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
@@ -568,7 +558,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
   @override
   void dispose() {
     _usernameController.dispose();
-    _emailController.dispose();
+    // _emailController.dispose(); // ลบการ dispose ของ email controller
     _addressController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
