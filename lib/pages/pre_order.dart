@@ -262,7 +262,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('กรุณาเพิ่มสินค้าอย่างน้อย 1 รายการ')),
       );
-      return;
+      return; //
     }
     setState(() => _isSubmitting = true);
     try {
