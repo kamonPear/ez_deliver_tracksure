@@ -91,7 +91,7 @@ class _LoginPageState extends State<LoginPage> {
       if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
         message = 'เบอร์โทรศัพท์ หรือ รหัสผ่านไม่ถูกต้อง';
       } else if (e.code == 'invalid-email') {
-        message = 'รูปแบบเบอร์โทรศัพท์หรืออีเมลไม่ถูกต้อง';
+        message = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง';
       } else {
         message = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
       }

@@ -4,6 +4,7 @@ import 'package:ez_deliver_tracksure/pages/order_list_page.dart';
 import 'package:ez_deliver_tracksure/pages/pre_order.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
 import 'products.dart';
 import 'top_bar.dart';
 import 'bottom_bar.dart';
@@ -16,7 +17,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 1;
+  int _selectedIndex = 0;
   bool _isLoading = true;
   Map<String, dynamic>? _userData;
 
@@ -68,34 +69,39 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // 🚀🚀🚀 THE FIX IS HERE 🚀🚀🚀
   void _onItemTapped(int index) {
-    // If the tapped item is the current one, do nothing.
-    if (_selectedIndex == index) return;
+  if (_selectedIndex == index) return;
 
-    // We use Navigator.push so that the back button works as expected.
-    // The state of _selectedIndex is only changed for the home button.
-    switch (index) {
-      case 0:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-        break;
-      case 1:
-        // Navigate to the Products (History) page
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Products()),
-        );
-        break;
-      case 2:
-        // Navigate to the EditPro (Others) page
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const EditPro()),
-        );
-        break;
-    }
+  // --- ไม่ต้อง setState ที่นี่แล้ว ---
+  // setState(() {
+  //   _selectedIndex = index;
+  // });
+  // ---------------------------------
+
+
+  switch (index) {
+    case 0:
+      // ถ้าอยู่ที่หน้าอื่น แล้วกด Home ให้แทนที่ด้วย HomeScreen
+      Navigator.pushReplacement( // <--- เปลี่ยน
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+      break;
+    case 1:
+      // ไปหน้า Products โดยการแทนที่
+      Navigator.pushReplacement( // <--- เปลี่ยน
+        context,
+        MaterialPageRoute(builder: (context) => const Products()), // หรือ OrderListPage() ถ้าจะใช้หน้านั้น
+      );
+      break;
+    case 2:
+      // ไปหน้า EditPro โดยการแทนที่
+      Navigator.pushReplacement( // <--- เปลี่ยน
+        context,
+        MaterialPageRoute(builder: (context) => const EditPro()),
+      );
+      break;
   }
+}
 
   // ... (The rest of your build methods like _buildWideMenuButton, etc., remain unchanged) ...
   Widget _buildWideMenuButton(

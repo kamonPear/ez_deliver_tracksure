@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+
 import 'package:ez_deliver_tracksure/api/api_service_image.dart'; // <--- ตรวจสอบว่า path นี้ถูกต้อง
 import 'package:ez_deliver_tracksure/pages/EditPro.dart';
 import 'package:ez_deliver_tracksure/pages/all.dart';
@@ -18,7 +20,7 @@ class PreOrderScreen extends StatefulWidget {
 
 class _PreOrderScreenState extends State<PreOrderScreen> {
   // --- State Variables ---
-    int _selectedIndex = 0;
+  int _selectedIndex = 0;
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _isSearching = false;
@@ -97,22 +99,12 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                 (addr) => addr['address'] == mainAddressString,
               );
               if (!isDuplicate) {
-                // ดึงค่า gps_location (String) มาแยก
-                String? gpsString = _userData!['gps_location'] as String?;
-                double? lat;
-                double? lng;
-
-                if (gpsString != null && gpsString.contains(',')) {
-                  try {
-                    final parts = gpsString.split(',');
-                    lat = double.tryParse(parts[0].trim());
-                    lng = double.tryParse(parts[1].trim());
-                  } catch (e) {
-                    print('Error parsing gps_location: $e');
-                    lat = null;
-                    lng = null;
-                  }
-                }
+                // ▼▼▼▼▼▼ [ CODE ที่แก้ไข ] ▼▼▼▼▼▼
+                // ดึงค่า latitude และ longitude (Number) โดยตรง
+                // ใช้วิธี (as num?)?.toDouble() เพื่อความปลอดภัย
+                final double? lat = (_userData!['latitude'] as num?)?.toDouble();
+                final double? lng = (_userData!['longitude'] as num?)?.toDouble();
+                // ▲▲▲▲▲▲ [ CODE ที่แก้ไข ] ▲▲▲▲▲▲
 
                 tempAddresses.insert(0, {
                   'name': 'ที่อยู่หลัก',
@@ -140,7 +132,8 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     }
   }
   // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-    void _onItemTapped(int index) {
+
+  void _onItemTapped(int index) {
     // If the tapped item is the current one, do nothing.
     if (_selectedIndex == index) return;
 
@@ -335,20 +328,11 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
         final orderRef = ordersCollection.doc();
         final receiverInfo = item['receiverData'] as Map<String, dynamic>;
 
-        // ดึงค่า gps_location (String) ของผู้รับมาแยก
-        String? receiverGpsString = receiverInfo['gps_location'] as String?;
-        double? destLat;
-        double? destLng;
-
-        if (receiverGpsString != null && receiverGpsString.contains(',')) {
-          try {
-            final parts = receiverGpsString.split(',');
-            destLat = double.tryParse(parts[0].trim());
-            destLng = double.tryParse(parts[1].trim());
-          } catch (e) {
-            print('Error parsing receiver gps_location: $e');
-          }
-        }
+        // ▼▼▼▼▼▼ [ CODE ที่แก้ไข ] ▼▼▼▼▼▼
+        // ดึงค่า latitude และ longitude (Number) ของผู้รับโดยตรง
+        final double? destLat = (receiverInfo['latitude'] as num?)?.toDouble();
+        final double? destLng = (receiverInfo['longitude'] as num?)?.toDouble();
+        // ▲▲▲▲▲▲ [ CODE ที่แก้ไข ] ▲▲▲▲▲▲
 
         final orderData = {
           'customerId': user.uid,
@@ -514,20 +498,11 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                   final user = FirebaseAuth.instance.currentUser;
                   if (user == null) return;
 
-                  // ดึง lat/long หลักของผู้ใช้ (ที่ได้มาจาก gps_location)
-                  String? gpsString = _userData?['gps_location'] as String?;
-                  double? mainLatitude;
-                  double? mainLongitude;
-
-                  if (gpsString != null && gpsString.contains(',')) {
-                    try {
-                      final parts = gpsString.split(',');
-                      mainLatitude = double.tryParse(parts[0].trim());
-                      mainLongitude = double.tryParse(parts[1].trim());
-                    } catch (e) {
-                      print('Error parsing gps_location: $e');
-                    }
-                  }
+                  // ▼▼▼▼▼▼ [ CODE ที่แก้ไข ] ▼▼▼▼▼▼
+                  // ดึง lat/long หลักของผู้ใช้ (ที่ได้มาจาก field ที่ถูกต้อง)
+                  final double? mainLatitude = (_userData?['latitude'] as num?)?.toDouble();
+                  final double? mainLongitude = (_userData?['longitude'] as num?)?.toDouble();
+                  // ▲▲▲▲▲▲ [ CODE ที่แก้ไข ] ▲▲▲▲▲▲
 
                   final newAddress = {
                     'name': _newAddressNameController.text.trim(),
@@ -541,8 +516,8 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                         .collection('customers')
                         .doc(user.uid)
                         .update({
-                          'addresses': FieldValue.arrayUnion([newAddress]),
-                        });
+                      'addresses': FieldValue.arrayUnion([newAddress]),
+                    });
 
                     if (mounted) {
                       setState(() {
@@ -613,14 +588,14 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                   backgroundColor: Colors.grey.shade200,
                   backgroundImage:
                       (userData?['profile_image_url'] != null &&
-                          userData!['profile_image_url'].isNotEmpty)
-                      ? NetworkImage(userData['profile_image_url'])
-                      : null,
+                              userData!['profile_image_url'].isNotEmpty)
+                          ? NetworkImage(userData['profile_image_url'])
+                          : null,
                   child:
                       (userData?['profile_image_url'] == null ||
-                          userData!['profile_image_url'].isEmpty)
-                      ? const Icon(Icons.person, color: primaryGreen)
-                      : null,
+                              userData!['profile_image_url'].isEmpty)
+                          ? const Icon(Icons.person, color: primaryGreen)
+                          : null,
                 ),
                 const SizedBox(width: 15),
                 Expanded(
@@ -733,25 +708,21 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     );
   }
 
+  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+  //         <--- จุดแก้ไขที่ 4
+  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
   Widget _buildReceiverInfoCard(Map<String, dynamic>? receiverData) {
     if (receiverData == null) {
       return const SizedBox.shrink();
     }
 
-    // เราจะแยกส่วน gps_location ของผู้รับตรงนี้เพื่อแสดงผล
-    String? gpsString = receiverData['gps_location'] as String?;
-    String lat = 'N/A';
-    String lng = 'N/A';
-
-    if (gpsString != null && gpsString.contains(',')) {
-      try {
-        final parts = gpsString.split(',');
-        lat = double.tryParse(parts[0].trim())?.toString() ?? 'N/A';
-        lng = double.tryParse(parts[1].trim())?.toString() ?? 'N/A';
-      } catch (e) {
-        //
-      }
-    }
+    // ▼▼▼▼▼▼ [ CODE ที่แก้ไข ] ▼▼▼▼▼▼
+    // เราจะแยกส่วน latitude/longitude ของผู้รับตรงนี้เพื่อแสดงผล
+    final double? latNum = (receiverData['latitude'] as num?)?.toDouble();
+    final double? lngNum = (receiverData['longitude'] as num?)?.toDouble();
+    String lat = latNum?.toString() ?? 'N/A';
+    String lng = lngNum?.toString() ?? 'N/A';
+    // ▲▲▲▲▲▲ [ CODE ที่แก้ไข ] ▲▲▲▲▲▲
 
     return Card(
       margin: const EdgeInsets.only(top: 16),
@@ -780,14 +751,14 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                   backgroundColor: Colors.grey.shade200,
                   backgroundImage:
                       (receiverData['profile_image_url'] != null &&
-                          receiverData['profile_image_url'].isNotEmpty)
-                      ? NetworkImage(receiverData['profile_image_url'])
-                      : null,
+                              receiverData['profile_image_url'].isNotEmpty)
+                          ? NetworkImage(receiverData['profile_image_url'])
+                          : null,
                   child:
                       (receiverData['profile_image_url'] == null ||
-                          receiverData['profile_image_url'].isEmpty)
-                      ? const Icon(Icons.person_pin_circle, color: primaryGreen)
-                      : null,
+                              receiverData['profile_image_url'].isEmpty)
+                          ? const Icon(Icons.person_pin_circle, color: primaryGreen)
+                          : null,
                 ),
                 const SizedBox(width: 15),
                 Expanded(
@@ -827,6 +798,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
       ),
     );
   }
+  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
   Widget _buildActionButton({
     required String text,

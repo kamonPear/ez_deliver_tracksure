@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ez_deliver_tracksure/pages/all.dart';
+import 'package:ez_deliver_tracksure/pages/all.dart'; // Import HomeScreen
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'top_bar.dart';
 import 'bottom_bar.dart';
 import 'login.dart';
-import 'products.dart';
+import 'products.dart'; // Import Products (หรือ OrderListPage)
 
 class EditPro extends StatefulWidget {
   const EditPro({super.key});
@@ -15,7 +15,10 @@ class EditPro extends StatefulWidget {
 }
 
 class _EditProState extends State<EditPro> {
-    int _selectedIndex = 0;
+  // ▼▼▼▼▼▼ [ CODE ที่แก้ไข ] ▼▼▼▼▼▼
+  int _selectedIndex = 2; // <--- แก้ไข: ตั้งค่า index เริ่มต้นให้ถูกต้อง (หน้า "อื่นๆ" คือ 2)
+  // ▲▲▲▲▲▲ [ CODE ที่แก้ไข ] ▲▲▲▲▲▲
+
   bool _isLoading = true;
   Map<String, dynamic>? _userData;
 
@@ -25,35 +28,42 @@ class _EditProState extends State<EditPro> {
     _fetchUserData();
   }
 
-    void _onItemTapped(int index) {
-    // If the tapped item is the current one, do nothing.
-    if (_selectedIndex == index) return;
+  // ▼▼▼▼▼▼ [ CODE ที่แก้ไข ] ▼▼▼▼▼▼
+  void _onItemTapped(int index) {
+  if (_selectedIndex == index) return;
 
-    // We use Navigator.push so that the back button works as expected.
-    // The state of _selectedIndex is only changed for the home button.
-    switch (index) {
-      case 0:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-        break;
-      case 1:
-        // Navigate to the Products (History) page
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const Products()),
-        );
-        break;
-      case 2:
-        // Navigate to the EditPro (Others) page
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const EditPro()),
-        );
-        break;
-    }
+  // --- ไม่ต้อง setState ที่นี่แล้ว ---
+  // setState(() {
+  //   _selectedIndex = index;
+  // });
+  // ---------------------------------
+
+
+  switch (index) {
+    case 0:
+      // ถ้าอยู่ที่หน้าอื่น แล้วกด Home ให้แทนที่ด้วย HomeScreen
+      Navigator.pushReplacement( // <--- เปลี่ยน
+        context,
+        MaterialPageRoute(builder: (context) => const HomeScreen()),
+      );
+      break;
+    case 1:
+      // ไปหน้า Products โดยการแทนที่
+      Navigator.pushReplacement( // <--- เปลี่ยน
+        context,
+        MaterialPageRoute(builder: (context) => const Products()), // หรือ OrderListPage() ถ้าจะใช้หน้านั้น
+      );
+      break;
+    case 2:
+      // ไปหน้า EditPro โดยการแทนที่
+      Navigator.pushReplacement( // <--- เปลี่ยน
+        context,
+        MaterialPageRoute(builder: (context) => const EditPro()),
+      );
+      break;
   }
+}
+  // ▲▲▲▲▲▲ [ CODE ที่แก้ไข ] ▲▲▲▲▲▲
 
   Future<void> _fetchUserData() async {
     User? user = FirebaseAuth.instance.currentUser;
@@ -85,6 +95,7 @@ class _EditProState extends State<EditPro> {
           });
         } else {
           setState(() => _isLoading = false);
+           print("User document not found for UID: ${user.uid}"); // เพิ่ม print log
         }
       }
     } catch (e) {
@@ -98,6 +109,7 @@ class _EditProState extends State<EditPro> {
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
     if (mounted) {
+      // ใช้ pushAndRemoveUntil เพื่อเคลียร์ stack การนำทางทั้งหมดก่อนไปหน้า Login
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginPage()),
         (Route<dynamic> route) => false,
@@ -161,18 +173,17 @@ class _EditProState extends State<EditPro> {
 
   @override
   Widget build(BuildContext context) {
-    const int currentIndex = 2;
+    // ไม่ต้องประกาศ currentIndex ที่นี่แล้ว
     const Color primaryIconColor = Color(0xFF00B09A);
     const Color logoutIconColor = Colors.red;
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      // 🚀 ใช้ Column + Spacer แทน SingleChildScrollView เพื่อจัดวาง UI ให้สวยงาม
-      body: Column(
+      body: Column( // ใช้ Column เพื่อดัน BottomBar ลงล่างสุด
         children: [
           _isLoading
               ? Container(
-                  height: 250,
+                  height: 250, // กำหนดความสูงที่แน่นอนสำหรับ Loading State
                   width: double.infinity,
                   decoration: const BoxDecoration(
                     gradient: LinearGradient(
@@ -189,19 +200,13 @@ class _EditProState extends State<EditPro> {
                     child: CircularProgressIndicator(color: Colors.white),
                   ),
                 )
-              : TopBar(
-                  userName:
-                      _userData?['customer_name'] ??
-                      _userData?['rider_name'] ??
-                      'ผู้ใช้',
+              : TopBar( // แสดง TopBar เมื่อโหลดเสร็จ
+                  userName: _userData?['customer_name'] ?? _userData?['rider_name'] ?? 'ผู้ใช้',
                   profileImageUrl: _userData?['profile_image_url'],
                   userAddress: _userData?['customer_address'] ?? 'ไม่มีข้อมูล',
                 ),
 
-          // 🚀🚀🚀 จุดที่แก้ไข 🚀🚀🚀
-          //
-          // นำเมนูด้านบนทั้งหมดออก และเหลือไว้แค่ส่วนตั้งค่า
-          //
+          // ส่วนเมนูตั้งค่า
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: 16.0,
@@ -213,9 +218,12 @@ class _EditProState extends State<EditPro> {
                   Icons.person_outline,
                   'แก้ไขข้อมูลส่วนตัว',
                   primaryIconColor,
-                  () => print('แก้ไขข้อมูลส่วนตัว clicked'),
+                  () {
+                      // TODO: Implement navigation to edit profile page
+                      print('แก้ไขข้อมูลส่วนตัว clicked');
+                      // ตัวอย่าง: Navigator.push(context, MaterialPageRoute(builder: (context) => EditProfileActualPage()));
+                    },
                 ),
-                // ลบ "เปลี่ยนรหัสผ่าน" ออก
                 _buildListMenuItem(
                   Icons.logout,
                   'ออกจากระบบ',
@@ -225,11 +233,11 @@ class _EditProState extends State<EditPro> {
               ],
             ),
           ),
-          const Spacer(), // 🚀 ดัน BottomBar ไปไว้ด้านล่างสุดของจอ
+          const Spacer(), // ดัน BottomBar ไปไว้ด้านล่างสุดของจอ
         ],
       ),
       bottomNavigationBar: BottomBar(
-        currentIndex: _selectedIndex,
+        currentIndex: _selectedIndex, // ใช้ state variable ที่ถูกต้อง
         onItemSelected: _onItemTapped,
       ),
     );
