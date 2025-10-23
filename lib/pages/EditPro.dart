@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ez_deliver_tracksure/pages/all.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'top_bar.dart';
@@ -14,6 +15,7 @@ class EditPro extends StatefulWidget {
 }
 
 class _EditProState extends State<EditPro> {
+    int _selectedIndex = 0;
   bool _isLoading = true;
   Map<String, dynamic>? _userData;
 
@@ -21,6 +23,36 @@ class _EditProState extends State<EditPro> {
   void initState() {
     super.initState();
     _fetchUserData();
+  }
+
+    void _onItemTapped(int index) {
+    // If the tapped item is the current one, do nothing.
+    if (_selectedIndex == index) return;
+
+    // We use Navigator.push so that the back button works as expected.
+    // The state of _selectedIndex is only changed for the home button.
+    switch (index) {
+      case 0:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+        break;
+      case 1:
+        // Navigate to the Products (History) page
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const Products()),
+        );
+        break;
+      case 2:
+        // Navigate to the EditPro (Others) page
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const EditPro()),
+        );
+        break;
+    }
   }
 
   Future<void> _fetchUserData() async {
@@ -74,7 +106,11 @@ class _EditProState extends State<EditPro> {
   }
 
   Widget _buildListMenuItem(
-      IconData icon, String title, Color iconColor, VoidCallback onTapAction) {
+    IconData icon,
+    String title,
+    Color iconColor,
+    VoidCallback onTapAction,
+  ) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -98,11 +134,7 @@ class _EditProState extends State<EditPro> {
             padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  color: iconColor,
-                  size: 24,
-                ),
+                Icon(icon, color: iconColor, size: 24),
                 const SizedBox(width: 15),
                 Expanded(
                   child: Text(
@@ -158,7 +190,8 @@ class _EditProState extends State<EditPro> {
                   ),
                 )
               : TopBar(
-                  userName: _userData?['customer_name'] ??
+                  userName:
+                      _userData?['customer_name'] ??
                       _userData?['rider_name'] ??
                       'ผู้ใช้',
                   profileImageUrl: _userData?['profile_image_url'],
@@ -170,8 +203,10 @@ class _EditProState extends State<EditPro> {
           // นำเมนูด้านบนทั้งหมดออก และเหลือไว้แค่ส่วนตั้งค่า
           //
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 20.0,
+            ),
             child: Column(
               children: [
                 _buildListMenuItem(
@@ -194,17 +229,8 @@ class _EditProState extends State<EditPro> {
         ],
       ),
       bottomNavigationBar: BottomBar(
-        currentIndex: currentIndex,
-        onItemSelected: (index) {
-          if (index == 0) {
-            Navigator.popUntil(context, (route) => route.isFirst);
-          } else if (index == 1) {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const Products()),
-            );
-          }
-        },
+        currentIndex: _selectedIndex,
+        onItemSelected: _onItemTapped,
       ),
     );
   }

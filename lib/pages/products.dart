@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ez_deliver_tracksure/pages/EditPro.dart';
+import 'package:ez_deliver_tracksure/pages/all.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'top_bar.dart';
@@ -12,6 +14,8 @@ class Products extends StatefulWidget {
 }
 
 class _ProductsState extends State<Products> {
+
+    int _selectedIndex = 0;
   bool _isLoading = true;
   Map<String, dynamic>? _userData; // สำหรับ TopBar
   List<QueryDocumentSnapshot> _orders = []; // สำหรับเก็บรายการออเดอร์
@@ -70,20 +74,37 @@ class _ProductsState extends State<Products> {
       print("🚨 เกิดข้อผิดพลาดในการดึงข้อมูล Products: $e");
     }
   }
+  void _onItemTapped(int index) {
+    // If the tapped item is the current one, do nothing.
+    if (_selectedIndex == index) return;
 
-  // ฟังก์ชันสำหรับจัดการการแตะที่ BottomNavigationBar
-  void _onItemTapped(BuildContext context, int index) {
-    if (index == 0) {
-      Navigator.pop(context);
-    } else if (index == 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('หน้านี้กำลังอยู่ระหว่างการพัฒนา'),
-          duration: Duration(milliseconds: 1500),
-        ),
-      );
+    // We use Navigator.push so that the back button works as expected.
+    // The state of _selectedIndex is only changed for the home button.
+    switch (index) {
+      case 0:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+        break;
+      case 1:
+        // Navigate to the Products (History) page
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const Products()),
+        );
+        break;
+      case 2:
+        // Navigate to the EditPro (Others) page
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const EditPro()),
+        );
+        break;
     }
   }
+  // ฟังก์ชันสำหรับจัดการการแตะที่ BottomNavigationBar
+
 
   // --- WIDGETS สำหรับแสดงผล ---
 
@@ -347,8 +368,8 @@ class _ProductsState extends State<Products> {
         ],
       ),
       bottomNavigationBar: BottomBar(
-        currentIndex: 1,
-        onItemSelected: (index) => _onItemTapped(context, index),
+        currentIndex: _selectedIndex,
+        onItemSelected: _onItemTapped,
       ),
     );
   }

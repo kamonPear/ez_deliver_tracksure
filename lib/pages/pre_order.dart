@@ -1,10 +1,13 @@
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ez_deliver_tracksure/api/api_service_image.dart';
+import 'package:ez_deliver_tracksure/api/api_service_image.dart'; // <--- ตรวจสอบว่า path นี้ถูกต้อง
+import 'package:ez_deliver_tracksure/pages/EditPro.dart';
+import 'package:ez_deliver_tracksure/pages/all.dart';
+import 'package:ez_deliver_tracksure/pages/products.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'bottom_bar.dart';
+import 'bottom_bar.dart'; // <--- ตรวจสอบว่า path นี้ถูกต้อง
 
 class PreOrderScreen extends StatefulWidget {
   const PreOrderScreen({Key? key}) : super(key: key);
@@ -15,6 +18,7 @@ class PreOrderScreen extends StatefulWidget {
 
 class _PreOrderScreenState extends State<PreOrderScreen> {
   // --- State Variables ---
+    int _selectedIndex = 0;
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _isSearching = false;
@@ -58,6 +62,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
 
   // --- Functions ---
 
+  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+  //         <--- จุดแก้ไขที่ 1
+  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
   Future<void> _fetchUserData() async {
     User? user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -90,9 +97,28 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                 (addr) => addr['address'] == mainAddressString,
               );
               if (!isDuplicate) {
+                // ดึงค่า gps_location (String) มาแยก
+                String? gpsString = _userData!['gps_location'] as String?;
+                double? lat;
+                double? lng;
+
+                if (gpsString != null && gpsString.contains(',')) {
+                  try {
+                    final parts = gpsString.split(',');
+                    lat = double.tryParse(parts[0].trim());
+                    lng = double.tryParse(parts[1].trim());
+                  } catch (e) {
+                    print('Error parsing gps_location: $e');
+                    lat = null;
+                    lng = null;
+                  }
+                }
+
                 tempAddresses.insert(0, {
                   'name': 'ที่อยู่หลัก',
                   'address': mainAddressString,
+                  'latitude': lat, // <-- ใช้ค่าที่แยกได้
+                  'longitude': lng, // <-- ใช้ค่าที่แยกได้
                 });
               }
             }
@@ -111,6 +137,36 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
       print("Error fetching user data: $e");
+    }
+  }
+  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    void _onItemTapped(int index) {
+    // If the tapped item is the current one, do nothing.
+    if (_selectedIndex == index) return;
+
+    // We use Navigator.push so that the back button works as expected.
+    // The state of _selectedIndex is only changed for the home button.
+    switch (index) {
+      case 0:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+        break;
+      case 1:
+        // Navigate to the Products (History) page
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const Products()),
+        );
+        break;
+      case 2:
+        // Navigate to the EditPro (Others) page
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const EditPro()),
+        );
+        break;
     }
   }
 
@@ -257,6 +313,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     }
   }
 
+  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+  //         <--- จุดแก้ไขที่ 2
+  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
   Future<void> _submitAllOrders() async {
     if (_addedItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -276,11 +335,32 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
         final orderRef = ordersCollection.doc();
         final receiverInfo = item['receiverData'] as Map<String, dynamic>;
 
+        // ดึงค่า gps_location (String) ของผู้รับมาแยก
+        String? receiverGpsString = receiverInfo['gps_location'] as String?;
+        double? destLat;
+        double? destLng;
+
+        if (receiverGpsString != null && receiverGpsString.contains(',')) {
+          try {
+            final parts = receiverGpsString.split(',');
+            destLat = double.tryParse(parts[0].trim());
+            destLng = double.tryParse(parts[1].trim());
+          } catch (e) {
+            print('Error parsing receiver gps_location: $e');
+          }
+        }
+
         final orderData = {
           'customerId': user.uid,
           'customerName': _userData?['customer_name'] ?? 'ไม่มีชื่อ',
           'pickupLocation':
               _selectedSenderAddress!['address'] ?? 'ไม่มีที่อยู่',
+
+          // --- ส่วนของผู้ส่ง (อันนี้ดึงมาจาก _selectedSenderAddress ซึ่งถูกแล้ว) ---
+          'pickup_latitude': _selectedSenderAddress!['latitude'] ?? null,
+          'pickup_longitude': _selectedSenderAddress!['longitude'] ?? null,
+
+          // ----------------------------------
           'productImageUrl': item['productImageUrl'],
           'productDescription': item['productDescription'],
           'status': 'pending',
@@ -289,7 +369,12 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
           'receiverName': receiverInfo['customer_name'] ?? 'N/A',
           'destination': receiverInfo['customer_address'] ?? 'N/A',
           'receiverPhone': receiverInfo['customer_phone'] ?? 'N/A',
+
+          // --- แก้ไข 2 บรรทัดนี้ (ของผู้รับ) ---
+          'destination_latitude': destLat, // <-- ใช้ค่าที่แยกได้
+          'destination_longitude': destLng, // <-- ใช้ค่าที่แยกได้
         };
+
         batch.set(orderRef, orderData);
       }
 
@@ -316,6 +401,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
       }
     }
   }
+  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
   void _showSelectSenderAddressDialog() {
     showDialog(
@@ -371,6 +457,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     );
   }
 
+  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+  //         <--- จุดแก้ไขที่ 3
+  // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
   Future<void> _showAddNewAddressDialog() async {
     _newAddressNameController.clear();
     _newAddressController.clear();
@@ -425,9 +514,26 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                   final user = FirebaseAuth.instance.currentUser;
                   if (user == null) return;
 
+                  // ดึง lat/long หลักของผู้ใช้ (ที่ได้มาจาก gps_location)
+                  String? gpsString = _userData?['gps_location'] as String?;
+                  double? mainLatitude;
+                  double? mainLongitude;
+
+                  if (gpsString != null && gpsString.contains(',')) {
+                    try {
+                      final parts = gpsString.split(',');
+                      mainLatitude = double.tryParse(parts[0].trim());
+                      mainLongitude = double.tryParse(parts[1].trim());
+                    } catch (e) {
+                      print('Error parsing gps_location: $e');
+                    }
+                  }
+
                   final newAddress = {
                     'name': _newAddressNameController.text.trim(),
                     'address': _newAddressController.text.trim(),
+                    'latitude': mainLatitude, // <--- แก้ไข
+                    'longitude': mainLongitude, // <--- แก้ไข
                   };
 
                   try {
@@ -471,6 +577,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
       },
     );
   }
+  // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
   // ***************************************************************
   // *********************** HELPER WIDGETS ************************
@@ -533,6 +640,15 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                       Text(
                         'ที่อยู่ : ${selectedAddress?['address'] ?? 'กรุณาเลือกที่อยู่'}',
                         style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        // ส่วนนี้จะแสดงผลถูกต้อง เมื่อ _selectedSenderAddress มีค่าที่ถูกต้อง
+                        'พิกัด: ${selectedAddress?['latitude'] ?? 'N/A'}, ${selectedAddress?['longitude'] ?? 'N/A'}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
@@ -621,6 +737,22 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     if (receiverData == null) {
       return const SizedBox.shrink();
     }
+
+    // เราจะแยกส่วน gps_location ของผู้รับตรงนี้เพื่อแสดงผล
+    String? gpsString = receiverData['gps_location'] as String?;
+    String lat = 'N/A';
+    String lng = 'N/A';
+
+    if (gpsString != null && gpsString.contains(',')) {
+      try {
+        final parts = gpsString.split(',');
+        lat = double.tryParse(parts[0].trim())?.toString() ?? 'N/A';
+        lng = double.tryParse(parts[1].trim())?.toString() ?? 'N/A';
+      } catch (e) {
+        //
+      }
+    }
+
     return Card(
       margin: const EdgeInsets.only(top: 16),
       elevation: 3,
@@ -675,6 +807,15 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                       Text(
                         'ที่อยู่ : ${receiverData['customer_address'] ?? '...'}',
                         style: const TextStyle(fontSize: 14),
+                      ),
+                      // (Optional) เพิ่มส่วนนี้เพื่อแสดง lat/lng ที่ดึงมา
+                      const SizedBox(height: 4),
+                      Text(
+                        'พิกัด: $lat, $lng', // <--- แก้ไขให้แสดงค่าที่แยกได้
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
                       ),
                     ],
                   ),
@@ -1012,12 +1153,8 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
               ),
             ),
       bottomNavigationBar: BottomBar(
-        currentIndex: currentIndex,
-        onItemSelected: (index) {
-          if (index == 0) {
-            Navigator.of(context).popUntil((route) => route.isFirst);
-          }
-        },
+        currentIndex: _selectedIndex,
+        onItemSelected: _onItemTapped,
       ),
     );
   }

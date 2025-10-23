@@ -3,14 +3,13 @@ import 'package:ez_deliver_tracksure/gps/mapgps.dart';
 import 'login.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart'; // <--- ต้อง import latlong2
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 // 1. Import Service ที่สร้างไว้
 import '../api/api_service_image.dart';
-
 
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
@@ -34,6 +33,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
   File? _vehicleImage;
   bool _isLoading = false;
   bool _isPasswordObscured = true;
+
+  LatLng? _selectedLocation; // <--- (แก้ไขจุดที่ 1) เพิ่มตัวแปรนี้
 
   final ImagePicker _picker = ImagePicker();
 
@@ -71,6 +72,14 @@ class _RegistrationPageState extends State<RegistrationPage> {
       ).showSnackBar(const SnackBar(content: Text('กรุณาอัปโหลดรูปยานพาหนะ')));
       return;
     }
+    
+    // <--- เพิ่มการตรวจสอบสำหรับผู้ใช้
+    if (_userType == 'ผู้ใช้' && _selectedLocation == null) {
+       ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('กรุณาเลือกพิกัด GPS')));
+      return;
+    }
 
     setState(() => _isLoading = true);
 
@@ -82,7 +91,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
           .createUserWithEmailAndPassword(
               email: emailForAuth,
               password: _passwordController.text.trim(),
-            );
+          );
 
       User? user = userCredential.user;
 
@@ -98,14 +107,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
         }
 
         if (_userType == 'ผู้ใช้') {
+          // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+          //           <--- (แก้ไขจุดที่ 3)
+          // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
           Map<String, dynamic> customerData = {
             'customer_name': _usernameController.text.trim(),
             'customer_phone': _phoneController.text.trim(),
             'customer_address': _addressController.text.trim(),
             'profile_image_url': profileImageUrl,
-            'gps_location': _gpsController.text.trim(),
+            'latitude': _selectedLocation?.latitude,   // <-- บันทึก latitude
+            'longitude': _selectedLocation?.longitude, // <-- บันทึก longitude
             'createdAt': FieldValue.serverTimestamp(),
           };
+          // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
           await FirebaseFirestore.instance
               .collection('customers')
@@ -125,6 +139,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
             'vehicle_image_url': vehicleImageUrl,
             'status': 'pending_approval',
             'createdAt': FieldValue.serverTimestamp(),
+            // ไรเดอร์ไม่จำเป็นต้องมี lat/long ตอนสมัคร (เพราะจะใช้ตำแหน่งปัจจุบันตอนทำงาน)
           };
 
           await FirebaseFirestore.instance
@@ -457,11 +472,16 @@ class _RegistrationPageState extends State<RegistrationPage> {
             final String? address = result['address'] as String?;
 
             if (position != null && address != null) {
+              // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+              //           <--- (แก้ไขจุดที่ 2)
+              // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
               setState(() {
+                _selectedLocation = position; // <-- เก็บค่า LatLng object
                 _gpsController.text =
                     '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
                 _addressController.text = address;
               });
+              // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
             }
           }
         },

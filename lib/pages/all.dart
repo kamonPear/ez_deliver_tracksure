@@ -1,12 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:ez_deliver_tracksure/pages/EditPro.dart';
-import 'package:ez_deliver_tracksure/pages/Product_status.dart';
+import 'package:ez_deliver_tracksure/pages/order_list_page.dart';
+import 'package:ez_deliver_tracksure/pages/pre_order.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'products.dart';
 import 'top_bar.dart';
 import 'bottom_bar.dart';
-import 'pre_order.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -16,7 +16,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
   bool _isLoading = true;
   Map<String, dynamic>? _userData;
 
@@ -75,12 +75,10 @@ class _HomeScreenState extends State<HomeScreen> {
     // The state of _selectedIndex is only changed for the home button.
     switch (index) {
       case 0:
-        // If we are not on the home screen, pop until we are.
-        // If we are, this does nothing.
-        Navigator.of(context).popUntil((route) => route.isFirst);
-        setState(() {
-          _selectedIndex = 0;
-        });
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
         break;
       case 1:
         // Navigate to the Products (History) page
@@ -208,10 +206,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   )
                 : TopBar(
-                    userName: _userData?['customer_name'] ?? _userData?['rider_name'] ?? 'User',
+                    userName:
+                        _userData?['customer_name'] ??
+                        _userData?['rider_name'] ??
+                        'User',
                     profileImageUrl: _userData?['profile_image_url'],
-                    userAddress:
-                        _userData?['customer_address'] ?? 'No address',
+                    userAddress: _userData?['customer_address'] ?? 'No address',
                   ),
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -240,7 +240,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => const ProductStatus(),
+                              builder: (context) => OrderListPage(),
                             ),
                           );
                         },
