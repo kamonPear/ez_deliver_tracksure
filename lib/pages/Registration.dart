@@ -3,7 +3,7 @@ import 'package:ez_deliver_tracksure/gps/mapgps.dart';
 import 'login.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart'; // <--- ต้อง import latlong2
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,6 +21,10 @@ class RegistrationPage extends StatefulWidget {
 class _RegistrationPageState extends State<RegistrationPage> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
+<<<<<<< HEAD
+=======
+  // final _emailController = TextEditingController(); // ลบ Controller ของอีเมลออก
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -32,6 +36,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
   File? _vehicleImage;
   bool _isLoading = false;
   bool _isPasswordObscured = true;
+
+  LatLng? _selectedLocation; // <--- (แก้ไขจุดที่ 1) เพิ่มตัวแปรนี้
 
   final ImagePicker _picker = ImagePicker();
   final ImageUploadService _imageUploadService = ImageUploadService();
@@ -66,10 +72,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
       );
       return;
     }
+    
+    // <--- เพิ่มการตรวจสอบสำหรับผู้ใช้
+    if (_userType == 'ผู้ใช้' && _selectedLocation == null) {
+       ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('กรุณาเลือกพิกัด GPS')));
+      return;
+    }
 
     setState(() => _isLoading = true);
 
     try {
+<<<<<<< HEAD
       final phoneTrimmed = _phoneController.text.trim();
 
       // ✅ สร้าง email จำลองแยกตามประเภท
@@ -82,6 +97,16 @@ class _RegistrationPageState extends State<RegistrationPage> {
         email: emailForAuth,
         password: _passwordController.text.trim(),
       );
+=======
+      // แก้ไข: ให้ทั้งผู้ใช้และไรเดอร์ใช้อีเมลจากเบอร์โทรศัพท์
+      String emailForAuth = '${_phoneController.text.trim()}@tracksure.app';
+
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+              email: emailForAuth,
+              password: _passwordController.text.trim(),
+          );
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
 
       User? user = userCredential.user;
 
@@ -96,14 +121,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
         }
 
         if (_userType == 'ผู้ใช้') {
+          // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+          //           <--- (แก้ไขจุดที่ 3)
+          // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
           Map<String, dynamic> customerData = {
             'customer_name': _usernameController.text.trim(),
             'customer_phone': _phoneController.text.trim(),
             'customer_address': _addressController.text.trim(),
             'profile_image_url': profileImageUrl,
-            'gps_location': _gpsController.text.trim(),
+            'latitude': _selectedLocation?.latitude,   // <-- บันทึก latitude
+            'longitude': _selectedLocation?.longitude, // <-- บันทึก longitude
             'createdAt': FieldValue.serverTimestamp(),
           };
+          // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
           await FirebaseFirestore.instance
               .collection('customers')
@@ -123,6 +153,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
             'vehicle_image_url': vehicleImageUrl,
             'status': 'pending_approval',
             'createdAt': FieldValue.serverTimestamp(),
+            // ไรเดอร์ไม่จำเป็นต้องมี lat/long ตอนสมัคร (เพราะจะใช้ตำแหน่งปัจจุบันตอนทำงาน)
           };
 
           await FirebaseFirestore.instance
@@ -138,9 +169,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
       if (e.code == 'weak-password') {
         message = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
       } else if (e.code == 'email-already-in-use') {
+<<<<<<< HEAD
         message = 'เบอร์นี้มีบัญชีประเภทนี้อยู่แล้ว';
       } else if (e.code == 'invalid-email') {
         message = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง';
+=======
+        message = 'อีเมลนี้มีผู้ใช้แล้ว หรือเบอร์โทรนี้เคยลงทะเบียนแล้ว';
+      } else if (e.code == 'invalid-email') {
+        message = 'รูปแบบอีเมลไม่ถูกต้อง';
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
@@ -256,9 +293,24 @@ class _RegistrationPageState extends State<RegistrationPage> {
                               const SizedBox(height: 20),
                               _buildImagePicker(isProfile: true),
                               const SizedBox(height: 20),
+<<<<<<< HEAD
                               _buildTextField(_usernameController, 'ชื่อ-สกุล', Icons.person),
                               _buildTextField(_phoneController, 'เบอร์โทรศัพท์', Icons.phone,
                                   keyboardType: TextInputType.phone),
+=======
+                              _buildTextField(
+                                _usernameController,
+                                'ชื่อ-สกุล',
+                                Icons.person,
+                              ),
+                              // ลบช่องกรอกอีเมลสำหรับไรเดอร์ออกจาก UI
+                              _buildTextField(
+                                _phoneController,
+                                'เบอร์โทรศัพท์',
+                                Icons.phone,
+                                keyboardType: TextInputType.phone,
+                              ),
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
                               _buildPasswordField(),
                               if (_userType == 'ผู้ใช้') ...[
                                 _buildGpsPickerField(),
@@ -372,8 +424,17 @@ class _RegistrationPageState extends State<RegistrationPage> {
     );
   }
 
+<<<<<<< HEAD
   Widget _buildTextField(TextEditingController controller, String label, IconData icon,
       {TextInputType? keyboardType}) {
+=======
+  Widget _buildTextField(
+  TextEditingController controller,
+  String label,
+  IconData icon, {
+  TextInputType? keyboardType,
+}) {
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
@@ -386,7 +447,17 @@ class _RegistrationPageState extends State<RegistrationPage> {
           contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),
         validator: (value) {
+<<<<<<< HEAD
           if (value == null || value.isEmpty) return 'กรุณากรอก$label';
+=======
+          if (value == null || value.isEmpty) {
+            return 'กรุณากรอก$label';
+          }
+          if (label == 'อีเมล' &&
+              !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+            return 'กรุณากรอกอีเมลให้ถูกต้อง';
+          }
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
           return null;
         },
       ),
@@ -420,11 +491,16 @@ class _RegistrationPageState extends State<RegistrationPage> {
             final String? address = result['address'] as String?;
 
             if (position != null && address != null) {
+              // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+              //           <--- (แก้ไขจุดที่ 2)
+              // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
               setState(() {
+                _selectedLocation = position; // <-- เก็บค่า LatLng object
                 _gpsController.text =
                     '${position.latitude.toStringAsFixed(6)}, ${position.longitude.toStringAsFixed(6)}';
                 _addressController.text = address;
               });
+              // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
             }
           }
         },
@@ -507,6 +583,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
   @override
   void dispose() {
     _usernameController.dispose();
+<<<<<<< HEAD
+=======
+    // _emailController.dispose(); // ลบการ dispose ของ email controller
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
     _addressController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();

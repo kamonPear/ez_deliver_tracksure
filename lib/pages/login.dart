@@ -5,7 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'Registration.dart';
 import 'all.dart';
-import 'package:ez_deliver_tracksure/pagerider/rider_home.dart';
+
+
+import 'package:ez_deliver_tracksure/pagerider/rider_home.dart'; //6165156>>>>>>> e1e2b5a18a18ff38ea888c113f50cb032a552e9a
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -32,10 +35,33 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+<<<<<<< HEAD
       final rawPhone = _loginController.text.trim();
       // 🚀 แก้ไข: ลบอักขระที่ไม่ใช่ตัวเลขทั้งหมดออก เพื่อให้มั่นใจว่าอีเมลถูกต้อง
       final phone = rawPhone.replaceAll(RegExp(r'[^\d]'), ''); 
       final password = _passwordController.text.trim();
+=======
+      // --- ส่วนสำคัญ: ตรวจสอบและแปลงข้อมูลการล็อกอิน ---
+      final loginInput = _loginController.text.trim();
+      String emailForAuth;
+
+      if (loginInput.contains('@')) {
+        // ถ้ามี @, ให้ถือว่าเป็นอีเมล (สำหรับ Rider)
+        emailForAuth = loginInput;
+      } else {
+        // ถ้าไม่มี @, ให้ถือว่าเป็นเบอร์โทร (สำหรับ Customer)
+        // และแปลงให้เป็นรูปแบบอีเมลที่ใช้สมัคร
+        emailForAuth = '$loginInput@tracksure.app';
+      }
+
+      // 1. ตรวจสอบกับ Firebase Authentication
+      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailForAuth,
+        password: _passwordController.text.trim(),
+      );
+
+      final user = userCredential.user;
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
 
       // ✅ Email จำลองตามประเภทผู้ใช้
       final List<String> potentialEmails = [
@@ -53,6 +79,7 @@ class _LoginPageState extends State<LoginPage> {
             email: email,
             password: password,
           );
+<<<<<<< HEAD
           loginSuccess = true;
           break; // ล็อกอินสำเร็จแล้ว ออกจากลูป
         } on FirebaseAuthException catch (e) {
@@ -61,6 +88,21 @@ class _LoginPageState extends State<LoginPage> {
           if (e.code == 'user-not-found' || e.code == 'wrong-password' || 
               e.code == 'invalid-credential') { // ครอบคลุม error จากภาพด้วย
             continue;
+=======
+        } else {
+          // ถ้าไม่เจอ ให้ไปค้นหาใน 'riders'
+          DocumentSnapshot riderDoc = await FirebaseFirestore.instance
+              .collection('riders')
+              .doc(user.uid)
+              .get();
+
+          if (riderDoc.exists) {
+            // ถ้าเจอใน 'riders' -> ไปยังหน้าสถานะของไรเดอร์
+            // Navigator.pushReplacement(
+            //   context,
+            //   MaterialPageRoute(builder: (context) => const StatusScreen()),
+            // );
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
           } else {
             // หากเกิดข้อผิดพลาดอื่น ๆ ให้หยุดและแสดงข้อผิดพลาด
             _showErrorDialog('เกิดข้อผิดพลาด: ${e.message}');
@@ -68,11 +110,22 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
       }
+<<<<<<< HEAD
 
       if (!loginSuccess) {
         // หากวนลูปครบแล้วแต่ยังล็อกอินไม่สำเร็จ
         _showErrorDialog('เบอร์โทรศัพท์ หรือรหัสผ่านไม่ถูกต้อง');
         return;
+=======
+    } on FirebaseAuthException catch (e) {
+      String message;
+      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
+        message = 'เบอร์โทรศัพท์ หรือ รหัสผ่านไม่ถูกต้อง';
+      } else if (e.code == 'invalid-email') {
+        message = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง';
+      } else {
+        message = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
       }
       
       final user = userCredential?.user;
@@ -193,13 +246,23 @@ class _LoginPageState extends State<LoginPage> {
                       TextField(
                         controller: _loginController,
                         style: GoogleFonts.prompt(),
+<<<<<<< HEAD
                         keyboardType: TextInputType.phone,
+=======
+                        keyboardType: TextInputType.emailAddress,
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
                         decoration: InputDecoration(
+                          // --- ส่วนที่ปรับปรุง ---
                           labelText: 'เบอร์โทรศัพท์',
+<<<<<<< HEAD
                           labelStyle:
                               GoogleFonts.prompt(color: Colors.green[800]),
                           prefixIcon:
                               Icon(Icons.phone, color: Colors.green[800]),
+=======
+                          labelStyle: GoogleFonts.prompt(color: Colors.green[800]),
+                          prefixIcon: Icon(Icons.person, color: Colors.green[800]),
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),

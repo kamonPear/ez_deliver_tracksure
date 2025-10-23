@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -107,11 +108,22 @@ class DeliveryStatusScreen extends StatefulWidget {
   final Order? acceptedOrder; // ทำให้เป็น optional
 
   const DeliveryStatusScreen({super.key, this.acceptedOrder});
+=======
+import 'package:flutter/material.dart';
+import 'rider_bottom_bar.dart'; 
+import 'rider_home.dart';
+import 'rider_home.dart'; 
+import 'package:ez_deliver_tracksure/pages/login.dart';
+
+class DeliveryStatusScreen extends StatelessWidget {
+  const DeliveryStatusScreen({super.key});
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
 
   static const Color primaryColor = Color(0xFF00BFA5);
   static const Color secondaryColor = Color(0xFF004D40);
 
   @override
+<<<<<<< HEAD
   State<DeliveryStatusScreen> createState() => _DeliveryStatusScreenState();
 }
 
@@ -338,6 +350,9 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     const Color primaryColor = DeliveryStatusScreen.primaryColor;
     const Color secondaryColor = DeliveryStatusScreen.secondaryColor;
 
+=======
+  Widget build(BuildContext context) {
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -354,6 +369,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
         elevation: 0,
         toolbarHeight: 0,
       ),
+<<<<<<< HEAD
       body: StreamBuilder<Order?>(
         stream: _fetchOngoingOrderStream(),
         builder: (context, snapshot) {
@@ -420,12 +436,30 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
             ),
           );
         },
+=======
+      body: SingleChildScrollView(
+        child: Column(
+          children: <Widget>[
+            _buildTopGradientAndBanner(context),
+            _buildMapSection(),
+            _buildPhotoSections(),
+            const SizedBox(height: 15),
+            _buildConfirmationButton(),
+            const SizedBox(height: 20),
+            _buildDeliveryDetailCard(context),
+            const SizedBox(height: 20),
+            _buildProductInfoButton(),
+            const SizedBox(height: 40),
+          ],
+        ),
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
       ),
 
       // **********************************************
       // ********* การเรียกใช้งาน Bottom Bar **********
       // **********************************************
       bottomNavigationBar: StatusBottomBar(
+<<<<<<< HEAD
         currentIndex: 1,
         onItemSelected: (index) {
           if (index == 0) {
@@ -453,6 +487,34 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
   // ----------------------------------------------------------
   // ส่วนฟังก์ชันย่อย (Widget Builders)
   // ----------------------------------------------------------
+=======
+  currentIndex: 1, // ✅ index ของหน้าปัจจุบัน (ข้อมูลการส่งของ)
+  onItemSelected: (index) {
+    if (index == 0) {
+      // 🏠 กดหน้าแรก → กลับไปหน้า DeliveryHomePage
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const DeliveryHomePage()),
+        (route) => false,
+      );
+    } else if (index == 2) {
+      // 🚪 ออกจากระบบ → กลับไปหน้า LoginPage
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginPage()),
+        (route) => false,
+      );
+    }
+  },
+),
+
+    );
+  }
+
+  // -------------------------------
+  // ส่วนฟังก์ชันย่อย (เหมือนเดิม)
+  // -------------------------------
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
 
   Widget _buildTopGradientAndBanner(BuildContext context, Order? currentOrder) {
     const Color secondaryColor = Color(0xFF004D40);
@@ -825,6 +887,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
+<<<<<<< HEAD
           _buildPhotoCard(
             label: 'ฉันรับสินค้าแล้ว',
             photoIndex: 0,
@@ -833,11 +896,16 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
             label: 'ยืนยันการจัดส่งสินค้า',
             photoIndex: 1,
           ),
+=======
+          _buildPhotoCard(label: 'สถานะกำลังจัดส่ง'),
+          _buildPhotoCard(label: 'สถานะจัดส่งสำเร็จ'),
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
         ],
       ),
     );
   }
 
+<<<<<<< HEAD
   Widget _buildPhotoCard({
     required String label,
     required int photoIndex,
@@ -847,25 +915,34 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
         ? RiderImageCache.deliveryImage
         : RiderImageCache.successImage;
 
+=======
+  Widget _buildPhotoCard({required String label}) {
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 5.0),
         child: Column(
           children: [
-            GestureDetector(
-              onTap: () => _showImageSourceActionSheet(context, photoIndex),
-              child: Container(
-                height: 100,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(10),
-                  image: imageFile != null
-                      ? DecorationImage(
-                          image: FileImage(imageFile),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
+            Container(
+              height: 100,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5F5F5),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt_outlined,
+                    color: Color(0xFF4CAF50),
+                    size: 30,
+                  ),
                 ),
+<<<<<<< HEAD
                 child: imageFile == null
                     ? Center(
                         child: Container(
@@ -884,6 +961,8 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
                         ),
                       )
                     : null,
+=======
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
               ),
             ),
             const SizedBox(height: 8),
@@ -900,6 +979,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     );
   }
 
+<<<<<<< HEAD
   // รับ Order object เพื่อใช้ในฟังก์ชัน _confirmDelivery
   Widget _buildConfirmationButton(Order order) {
     // [ADDED] กำหนดข้อความปุ่มตามสถานะของงานและรูปภาพใน Cache
@@ -917,6 +997,11 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
       onPressed: () {
         _confirmDelivery(order);
       },
+=======
+  Widget _buildConfirmationButton() {
+    return ElevatedButton(
+      onPressed: () {},
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
       style: ElevatedButton.styleFrom(
         backgroundColor: buttonColor,
         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
@@ -936,6 +1021,103 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     );
   }
 
+<<<<<<< HEAD
+=======
+  Widget _buildDeliveryDetailCard(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20.0),
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Padding(
+          padding: const EdgeInsets.all(15.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0F7FA),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.motorcycle,
+                  color: Color(0xFF00ACC1),
+                  size: 40,
+                ),
+              ),
+              const SizedBox(width: 15),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    _buildDetailRow(
+                      context: context,
+                      label: 'ผู้ส่ง: คณะวิทยาศาสตร์การเกษตร',
+                      details: 'เบอร์โทร : 123 4567 7890',
+                      isSender: true,
+                    ),
+                    const Divider(height: 15),
+                    _buildDetailRow(
+                      context: context,
+                      label: 'ผู้รับ: หอพักพรานพลาซ่าใต้อ่าง',
+                      details: 'เบอร์โทร : 123 4567 7890',
+                      isSender: false,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow({
+    required BuildContext context,
+    required String label,
+    required String details,
+    required bool isSender,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.location_on,
+              color: isSender ? Colors.red : Colors.green,
+              size: 18,
+            ),
+            const SizedBox(width: 5),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 23.0),
+          child: Text(
+            details,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.grey,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
   Widget _buildProductInfoButton() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -953,7 +1135,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
               color: Colors.black.withOpacity(0.2),
               spreadRadius: 1,
               blurRadius: 3,
-              offset: const Offset(0, 3),
+              offset: Offset(0, 3),
             ),
           ],
         ),
@@ -980,6 +1162,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
       ),
     );
   }
+<<<<<<< HEAD
 
   // [NEW] ฟังก์ชันสำหรับแสดงข้อมูลสินค้า
   void _showProductDetails(BuildContext context, Order? order) {
@@ -1034,3 +1217,6 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     );
   }
 }
+=======
+}
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
