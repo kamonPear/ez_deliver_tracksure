@@ -1,13 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:ez_deliver_tracksure/pages/EditPro.dart';
-import 'package:ez_deliver_tracksure/pages/order_list_page.dart';
-import 'package:ez_deliver_tracksure/pages/pre_order.dart';
+import 'package:ez_deliver_tracksure/pages/Product_status.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import 'products.dart';
 import 'top_bar.dart';
 import 'bottom_bar.dart';
+import 'pre_order.dart'; // <-- 1. เพิ่ม import สำหรับหน้าส่งสินค้า
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,75 +33,69 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      // This logic checks both 'customers' and 'riders' collections
-      DocumentSnapshot docSnapshot = await FirebaseFirestore.instance
+      final docSnapshot = await FirebaseFirestore.instance
           .collection('customers')
           .doc(user.uid)
           .get();
 
-      if (!docSnapshot.exists) {
-        docSnapshot = await FirebaseFirestore.instance
-            .collection('riders')
-            .doc(user.uid)
-            .get();
-      }
-
       if (mounted) {
         if (docSnapshot.exists) {
           setState(() {
-            _userData = docSnapshot.data() as Map<String, dynamic>?;
+            _userData = docSnapshot.data();
             _isLoading = false;
           });
         } else {
           setState(() => _isLoading = false);
-          print("User document not found for UID: ${user.uid}");
+          print("ไม่พบข้อมูลผู้ใช้ใน Firestore สำหรับ UID: ${user.uid}");
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-      print("Error fetching user data: $e");
+      print("เกิดข้อผิดพลาดในการดึงข้อมูล: $e");
     }
   }
 
-  // 🚀🚀🚀 THE FIX IS HERE 🚀🚀🚀
   void _onItemTapped(int index) {
-  if (_selectedIndex == index) return;
+    // ป้องกันการ setState ซ้ำซ้อนถ้าผู้ใช้อยู่ที่หน้านั้นๆ แล้ว
+    if (_selectedIndex == index) return;
 
-  // --- ไม่ต้อง setState ที่นี่แล้ว ---
-  // setState(() {
-  //   _selectedIndex = index;
-  // });
-  // ---------------------------------
+    setState(() {
+      _selectedIndex = index;
+    });
 
-
-  switch (index) {
-    case 0:
-      // ถ้าอยู่ที่หน้าอื่น แล้วกด Home ให้แทนที่ด้วย HomeScreen
-      Navigator.pushReplacement( // <--- เปลี่ยน
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
-      break;
-    case 1:
-      // ไปหน้า Products โดยการแทนที่
-      Navigator.pushReplacement( // <--- เปลี่ยน
-        context,
-        MaterialPageRoute(builder: (context) => const Products()), // หรือ OrderListPage() ถ้าจะใช้หน้านั้น
-      );
-      break;
-    case 2:
-      // ไปหน้า EditPro โดยการแทนที่
-      Navigator.pushReplacement( // <--- เปลี่ยน
-        context,
-        MaterialPageRoute(builder: (context) => const EditPro()),
-      );
-      break;
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const Products()),
+        ).then((_) {
+          // เมื่อกลับมาจากหน้า Products, รีเซ็ต index กลับเป็น 0
+          if (mounted) {
+            setState(() {
+              _selectedIndex = 0;
+            });
+          }
+        });
+        break;
+      case 2:
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('หน้านี้ยังไม่พร้อมใช้งาน')),
+        );
+        // รีเซ็ต index กลับเป็นค่าก่อนหน้า
+        if (mounted) {
+          setState(() {
+            _selectedIndex = 0; // หรือค่า index ก่อนหน้าที่จะกด
+          });
+        }
+        break;
+    }
   }
-}
 
-  // ... (The rest of your build methods like _buildWideMenuButton, etc., remain unchanged) ...
+  // 3. แก้ไขฟังก์ชันให้รับ onTap Action เข้ามาได้
   Widget _buildWideMenuButton(
     String imagePath,
     String label,
@@ -212,12 +204,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   )
                 : TopBar(
-                    userName:
-                        _userData?['customer_name'] ??
-                        _userData?['rider_name'] ??
-                        'User',
+                    userName: _userData?['customer_name'] ?? 'ผู้ใช้',
                     profileImageUrl: _userData?['profile_image_url'],
-                    userAddress: _userData?['customer_address'] ?? 'No address',
+                    userAddress:
+                        _userData?['customer_address'] ?? 'ไม่มีที่อยู่',
                   ),
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -226,6 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // 4. เพิ่มการนำทางสำหรับปุ่ม "ส่งสินค้า"
                       _buildWideMenuButton(
                         'assets/image/order.png',
                         'ส่งสินค้า',
@@ -239,6 +230,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       const SizedBox(width: 10),
+                      // 5. เพิ่มการนำทางสำหรับปุ่ม "สถานะพัสดุ"
                       _buildWideMenuButton(
                         'assets/image/order2.png',
                         'สถานะพัสดุ',
@@ -246,7 +238,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => OrderListPage(),
+                              builder: (context) => const ProductStatus(),
                             ),
                           );
                         },

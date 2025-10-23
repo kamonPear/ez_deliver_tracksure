@@ -3,11 +3,12 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Import หน้าอื่นๆ ที่จำเป็นจากไฟล์ placeholder
 import 'Registration.dart';
 import 'all.dart';
 
+
 import 'package:ez_deliver_tracksure/pagerider/rider_home.dart'; //6165156>>>>>>> e1e2b5a18a18ff38ea888c113f50cb032a552e9a
+
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -22,6 +23,7 @@ class _LoginPageState extends State<LoginPage> {
   bool _isPasswordObscured = true;
   bool _isLoading = false;
 
+  // ✅ ฟังก์ชันที่ถูกปรับปรุง
   Future<void> _signIn() async {
     if (_loginController.text.isEmpty || _passwordController.text.isEmpty) {
       _showErrorDialog('กรุณากรอกข้อมูลให้ครบถ้วน');
@@ -33,6 +35,12 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
+<<<<<<< HEAD
+      final rawPhone = _loginController.text.trim();
+      // 🚀 แก้ไข: ลบอักขระที่ไม่ใช่ตัวเลขทั้งหมดออก เพื่อให้มั่นใจว่าอีเมลถูกต้อง
+      final phone = rawPhone.replaceAll(RegExp(r'[^\d]'), ''); 
+      final password = _passwordController.text.trim();
+=======
       // --- ส่วนสำคัญ: ตรวจสอบและแปลงข้อมูลการล็อกอิน ---
       final loginInput = _loginController.text.trim();
       String emailForAuth;
@@ -53,20 +61,34 @@ class _LoginPageState extends State<LoginPage> {
       );
 
       final user = userCredential.user;
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
 
-      if (user != null) {
-        // 2. ค้นหาข้อมูลใน Firestore เพื่อแยกประเภทผู้ใช้
-        DocumentSnapshot customerDoc = await FirebaseFirestore.instance
-            .collection('customers')
-            .doc(user.uid)
-            .get();
+      // ✅ Email จำลองตามประเภทผู้ใช้
+      final List<String> potentialEmails = [
+        '${phone}_customer@tracksure.app', // ลองเป็นลูกค้าก่อน
+        '${phone}_rider@tracksure.app',    // ถ้าไม่ได้ ลองเป็นไรเดอร์
+      ];
 
-        if (customerDoc.exists) {
-          // ถ้าเจอใน 'customers' -> ไปยังหน้า Home ของผู้ใช้
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const HomeScreen()),
+      UserCredential? userCredential;
+      bool loginSuccess = false;
+
+      // 🔁 วนลูปเพื่อลองล็อกอินด้วยอีเมลที่เป็นไปได้ทั้งหมด
+      for (final email in potentialEmails) {
+        try {
+          userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: email,
+            password: password,
           );
+<<<<<<< HEAD
+          loginSuccess = true;
+          break; // ล็อกอินสำเร็จแล้ว ออกจากลูป
+        } on FirebaseAuthException catch (e) {
+          // ถ้าเกิดข้อผิดพลาด 'user-not-found' (ไม่เจออีเมล) 
+          // หรือ 'wrong-password' (รหัสผ่านผิดสำหรับอีเมลนี้) ให้ลองอีเมลถัดไป
+          if (e.code == 'user-not-found' || e.code == 'wrong-password' || 
+              e.code == 'invalid-credential') { // ครอบคลุม error จากภาพด้วย
+            continue;
+=======
         } else {
           // ถ้าไม่เจอ ให้ไปค้นหาใน 'riders'
           DocumentSnapshot riderDoc = await FirebaseFirestore.instance
@@ -80,12 +102,21 @@ class _LoginPageState extends State<LoginPage> {
             //   context,
             //   MaterialPageRoute(builder: (context) => const StatusScreen()),
             // );
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
           } else {
-            // ไม่พบข้อมูลในทั้ง 2 collections
-            _showErrorDialog('ไม่พบข้อมูลผู้ใช้งานในระบบ');
+            // หากเกิดข้อผิดพลาดอื่น ๆ ให้หยุดและแสดงข้อผิดพลาด
+            _showErrorDialog('เกิดข้อผิดพลาด: ${e.message}');
+            return;
           }
         }
       }
+<<<<<<< HEAD
+
+      if (!loginSuccess) {
+        // หากวนลูปครบแล้วแต่ยังล็อกอินไม่สำเร็จ
+        _showErrorDialog('เบอร์โทรศัพท์ หรือรหัสผ่านไม่ถูกต้อง');
+        return;
+=======
     } on FirebaseAuthException catch (e) {
       String message;
       if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
@@ -94,8 +125,51 @@ class _LoginPageState extends State<LoginPage> {
         message = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง';
       } else {
         message = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
       }
-      _showErrorDialog(message);
+      
+      final user = userCredential?.user;
+      if (user == null) {
+        _showErrorDialog('ไม่สามารถเข้าสู่ระบบได้');
+        return;
+      }
+      
+      // ⚠️ **ขั้นตอนที่ 2: ตรวจสอบ Firestore**
+      // ตรวจสอบว่าเป็นลูกค้าหรือไรเดอร์ใน Firestore
+
+      final customerDoc = await FirebaseFirestore.instance
+          .collection('customers')
+          .doc(user.uid)
+          .get();
+
+      if (customerDoc.exists) {
+        // ไปหน้า Home สำหรับผู้ใช้ (ลูกค้า)
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+        return;
+      }
+
+      final riderDoc = await FirebaseFirestore.instance
+          .collection('riders')
+          .doc(user.uid)
+          .get();
+
+      if (riderDoc.exists) {
+        // ไปหน้า Home สำหรับไรเดอร์
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DeliveryHomePage()),
+        );
+        return;
+      }
+
+      // หากล็อกอิน Firebase ได้ แต่ไม่พบ UID ใน Firestore ทั้งสองคอลเลกชัน
+      // Sign Out เพื่อไม่ให้ผู้ใช้ค้างอยู่ในสถานะล็อกอิน
+      await FirebaseAuth.instance.signOut();
+      _showErrorDialog('ไม่พบข้อมูลผู้ใช้งานในระบบ (กรุณาลงทะเบียน)');
+      
     } catch (e) {
       _showErrorDialog('เกิดข้อผิดพลาดที่ไม่รู้จัก: ${e.toString()}');
     } finally {
@@ -172,12 +246,23 @@ class _LoginPageState extends State<LoginPage> {
                       TextField(
                         controller: _loginController,
                         style: GoogleFonts.prompt(),
+<<<<<<< HEAD
+                        keyboardType: TextInputType.phone,
+=======
                         keyboardType: TextInputType.emailAddress,
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
                         decoration: InputDecoration(
                           // --- ส่วนที่ปรับปรุง ---
                           labelText: 'เบอร์โทรศัพท์',
+<<<<<<< HEAD
+                          labelStyle:
+                              GoogleFonts.prompt(color: Colors.green[800]),
+                          prefixIcon:
+                              Icon(Icons.phone, color: Colors.green[800]),
+=======
                           labelStyle: GoogleFonts.prompt(color: Colors.green[800]),
                           prefixIcon: Icon(Icons.person, color: Colors.green[800]),
+>>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -195,8 +280,10 @@ class _LoginPageState extends State<LoginPage> {
                         style: GoogleFonts.prompt(),
                         decoration: InputDecoration(
                           labelText: 'รหัสผ่าน',
-                          labelStyle: GoogleFonts.prompt(color: Colors.green[800]),
-                          prefixIcon: Icon(Icons.lock, color: Colors.green[800]),
+                          labelStyle:
+                              GoogleFonts.prompt(color: Colors.green[800]),
+                          prefixIcon:
+                              Icon(Icons.lock, color: Colors.green[800]),
                           suffixIcon: IconButton(
                             icon: Icon(
                               _isPasswordObscured
@@ -224,9 +311,7 @@ class _LoginPageState extends State<LoginPage> {
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {
-                            // TODO: Implement forgot password logic
-                          },
+                          onPressed: () {},
                           child: Text(
                             'ลืมรหัสผ่าน?',
                             style: GoogleFonts.prompt(
@@ -252,23 +337,24 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                         ),
                         child: _isLoading
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
                             : const Text('เข้าสู่ระบบ'),
                       ),
                       const SizedBox(height: 20),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            'ถ้าคุณยังไม่ได้เป็นสมาชิก?',
-                            style: GoogleFonts.prompt(),
-                          ),
+                          Text('ถ้าคุณยังไม่ได้เป็นสมาชิก?',
+                              style: GoogleFonts.prompt()),
                           TextButton(
                             onPressed: () {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const RegistrationPage(),
+                                  builder: (context) =>
+                                      const RegistrationPage(),
                                 ),
                               );
                             },
