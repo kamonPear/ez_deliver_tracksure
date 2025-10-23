@@ -11,7 +11,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // 1. Import Service ที่สร้างไว้
 import '../api/api_service_image.dart';
 
-
 class RegistrationPage extends StatefulWidget {
   const RegistrationPage({super.key});
 
@@ -22,7 +21,6 @@ class RegistrationPage extends StatefulWidget {
 class _RegistrationPageState extends State<RegistrationPage> {
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
-  // final _emailController = TextEditingController(); // *** ถูกลบออก ***
   final _addressController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -36,8 +34,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
   bool _isPasswordObscured = true;
 
   final ImagePicker _picker = ImagePicker();
-
-  // 2. สร้าง Instance ของ Image Upload Service
   final ImageUploadService _imageUploadService = ImageUploadService();
 
   Future<void> _pickImage(ImageSource source, {required bool isProfile}) async {
@@ -60,31 +56,32 @@ class _RegistrationPageState extends State<RegistrationPage> {
     }
   }
 
+  // ✅ ปรับให้สมัครได้ทั้งผู้ใช้และไรเดอร์จากเบอร์เดียวกัน
   Future<void> _registerUser() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+    if (!_formKey.currentState!.validate()) return;
 
     if (_userType == 'ไรเดอร์' && _vehicleImage == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('กรุณาอัปโหลดรูปยานพาหนะ')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('กรุณาอัปโหลดรูปยานพาหนะ')),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      // *** เปลี่ยน logic การสร้าง emailForAuth: ใช้เบอร์โทรศัพท์สร้าง email สำหรับทุกประเภทผู้ใช้ ***
-      // ทำให้ไม่ต้องมีช่องกรอกอีเมลสำหรับ Rider อีกต่อไป
       final phoneTrimmed = _phoneController.text.trim();
-      final emailForAuth = '$phoneTrimmed@tracksure.app'; 
+
+      // ✅ สร้าง email จำลองแยกตามประเภท
+     final emailForAuth = (_userType ?? '') == 'ผู้ใช้'
+    ? '${phoneTrimmed}_customer@tracksure.app'
+    : '${phoneTrimmed}_rider@tracksure.app';
 
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-            email: emailForAuth,
-            password: _passwordController.text.trim(),
-          );
+        email: emailForAuth,
+        password: _passwordController.text.trim(),
+      );
 
       User? user = userCredential.user;
 
@@ -92,11 +89,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
         String? profileImageUrl;
         String? vehicleImageUrl;
 
-        // เปลี่ยนมาเรียกใช้ Cloudinary Service
+        // อัปโหลดรูปโปรไฟล์
         if (_profileImage != null) {
-          profileImageUrl = await _imageUploadService.uploadImageToCloudinary(
-            _profileImage!,
-          );
+          profileImageUrl =
+              await _imageUploadService.uploadImageToCloudinary(_profileImage!);
         }
 
         if (_userType == 'ผู้ใช้') {
@@ -115,14 +111,13 @@ class _RegistrationPageState extends State<RegistrationPage> {
               .set(customerData);
         } else if (_userType == 'ไรเดอร์') {
           if (_vehicleImage != null) {
-            vehicleImageUrl = await _imageUploadService.uploadImageToCloudinary(
-              _vehicleImage!,
-            );
+            vehicleImageUrl =
+                await _imageUploadService.uploadImageToCloudinary(_vehicleImage!);
           }
+
           Map<String, dynamic> riderData = {
             'rider_name': _usernameController.text.trim(),
             'rider_phone': _phoneController.text.trim(),
-            // 'rider_email' : ถูกลบออกจากการเก็บข้อมูล
             'profile_image_url': profileImageUrl,
             'license_plate': _licensePlateController.text.trim(),
             'vehicle_image_url': vehicleImageUrl,
@@ -135,6 +130,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
               .doc(user.uid)
               .set(riderData);
         }
+
         _showSuccessDialog();
       }
     } on FirebaseAuthException catch (e) {
@@ -142,24 +138,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
       if (e.code == 'weak-password') {
         message = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
       } else if (e.code == 'email-already-in-use') {
-        // ข้อความนี้อาจจะเกิดได้ถ้ามีลูกค้าหรือไรเดอร์ใช้เบอร์เดียวกัน
-        message = 'เบอร์โทรนี้เคยลงทะเบียนแล้ว'; 
+        message = 'เบอร์นี้มีบัญชีประเภทนี้อยู่แล้ว';
       } else if (e.code == 'invalid-email') {
-        message = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง (ไม่ควรเกิดขึ้น)';
+        message = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง';
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('เกิดข้อผิดพลาดในการอัปโหลดรูปภาพ: $e')),
+        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
       );
     } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -265,25 +256,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
                               const SizedBox(height: 20),
                               _buildImagePicker(isProfile: true),
                               const SizedBox(height: 20),
-                              _buildTextField(
-                                _usernameController,
-                                'ชื่อ-สกุล',
-                                Icons.person,
-                              ),
-                              // *** ลบช่องกรอกอีเมลสำหรับไรเดอร์ออก ***
-                              // if (_userType == 'ไรเดอร์')
-                              //   _buildTextField(
-                              //     _emailController,
-                              //     'อีเมล',
-                              //     Icons.email,
-                              //     keyboardType: TextInputType.emailAddress,
-                              //   ),
-                              _buildTextField(
-                                _phoneController,
-                                'เบอร์โทรศัพท์',
-                                Icons.phone,
-                                keyboardType: TextInputType.phone,
-                              ),
+                              _buildTextField(_usernameController, 'ชื่อ-สกุล', Icons.person),
+                              _buildTextField(_phoneController, 'เบอร์โทรศัพท์', Icons.phone,
+                                  keyboardType: TextInputType.phone),
                               _buildPasswordField(),
                               if (_userType == 'ผู้ใช้') ...[
                                 _buildGpsPickerField(),
@@ -293,9 +268,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                                 const SizedBox(height: 15),
                                 Divider(color: Colors.grey[300]),
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 8.0,
-                                  ),
+                                  padding: const EdgeInsets.symmetric(vertical: 8.0),
                                   child: Text(
                                     "ข้อมูลเพิ่มเติมสำหรับไรเดอร์",
                                     style: GoogleFonts.prompt(
@@ -305,11 +278,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
                                     ),
                                   ),
                                 ),
-                                _buildTextField(
-                                  _licensePlateController,
-                                  'หมายเลขทะเบียนรถ',
-                                  Icons.motorcycle,
-                                ),
+                                _buildTextField(_licensePlateController, 'หมายเลขทะเบียนรถ',
+                                    Icons.motorcycle),
                                 const SizedBox(height: 20),
                                 _buildImagePicker(isProfile: false),
                                 Divider(color: Colors.grey[300]),
@@ -402,12 +372,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
     );
   }
 
-  Widget _buildTextField(
-    TextEditingController controller,
-    String label,
-    IconData icon, {
-    TextInputType? keyboardType,
-  }) {
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon,
+      {TextInputType? keyboardType}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: TextFormField(
@@ -417,19 +383,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
           labelText: label,
           prefixIcon: Icon(icon),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 12,
-            horizontal: 16,
-          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),
         validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'กรุณากรอก$label';
-          }
-          // if (label == 'อีเมล' && // *** ลบเงื่อนไขการตรวจสอบอีเมล เพราะไม่มีช่องกรอกอีเมลแล้ว ***
-          //     !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-          //   return 'กรุณากรอกอีเมลให้ถูกต้อง';
-          // }
+          if (value == null || value.isEmpty) return 'กรุณากรอก$label';
           return null;
         },
       ),
@@ -446,15 +403,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
           labelText: 'พิกัด GPS (แตะเพื่อเลือกบนแผนที่)',
           prefixIcon: const Icon(Icons.map),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 12,
-            horizontal: 16,
-          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),
         validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'กรุณาเลือกพิกัด GPS';
-          }
+          if (value == null || value.isEmpty) return 'กรุณาเลือกพิกัด GPS';
           return null;
         },
         onTap: () async {
@@ -490,15 +442,10 @@ class _RegistrationPageState extends State<RegistrationPage> {
           labelText: 'ที่อยู่ (พิมพ์เพื่อค้นหา หรือเลือกจากแผนที่)',
           prefixIcon: const Icon(Icons.location_on),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 12,
-            horizontal: 16,
-          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),
         validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'กรุณากรอกที่อยู่ หรือเลือกจากแผนที่';
-          }
+          if (value == null || value.isEmpty) return 'กรุณากรอกที่อยู่ หรือเลือกจากแผนที่';
           return null;
         },
       ),
@@ -522,18 +469,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
                 setState(() => _isPasswordObscured = !_isPasswordObscured),
           ),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 12,
-            horizontal: 16,
-          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
         ),
         validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'กรุณากรอกรหัสผ่าน';
-          }
-          if (value.length < 6) {
-            return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
-          }
+          if (value == null || value.isEmpty) return 'กรุณากรอกรหัสผ่าน';
+          if (value.length < 6) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
           return null;
         },
       ),
@@ -548,9 +488,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.green,
           padding: const EdgeInsets.symmetric(vertical: 15),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
         child: _isLoading
             ? const CircularProgressIndicator(color: Colors.white)
@@ -569,7 +507,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
   @override
   void dispose() {
     _usernameController.dispose();
-    // _emailController.dispose(); // *** ถูกลบออก ***
     _addressController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
