@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:ez_deliver_tracksure/pages/products.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'all.dart';
 import 'top_bar.dart';
 import 'bottom_bar.dart';
 import 'login.dart'; // <-- 1. IMPORT หน้า Login สำหรับการ Logout
@@ -17,6 +19,8 @@ class EditPro extends StatefulWidget {
 
 class _EditProState extends State<EditPro> {
   // 3. เพิ่ม State สำหรับจัดการการโหลดและเก็บข้อมูลผู้ใช้
+
+    int _selectedIndex = 2;
   bool _isLoading = true;
   Map<String, dynamic>? _userData;
 
@@ -58,6 +62,43 @@ class _EditProState extends State<EditPro> {
     }
   }
 
+  // 🚀🚀🚀 THE FIX IS HERE 🚀🚀🚀
+  void _onItemTapped(int index) {
+    if (_selectedIndex == index) return;
+
+    // --- ไม่ต้อง setState ที่นี่แล้ว ---
+    // setState(() {
+    //   _selectedIndex = index;
+    // });
+    // ---------------------------------
+
+
+    switch (index) {
+      case 0:
+        // ถ้าอยู่ที่หน้าอื่น แล้วกด Home ให้แทนที่ด้วย HomeScreen
+        Navigator.pushReplacement( // <--- เปลี่ยน
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()), // ตรวจสอบว่า HomeScreen มาจาก 'all.dart'
+        );
+        break;
+      case 1:
+        // ไปหน้า Products โดยการแทนที่
+        Navigator.pushReplacement( // <--- เปลี่ยน
+          context,
+          MaterialPageRoute(builder: (context) => const Products()), // หรือ OrderListPage() ถ้าจะใช้หน้านั้น
+        );
+        break;
+      case 2:
+        // ไปหน้า EditPro โดยการแทนที่
+        Navigator.pushReplacement( // <--- เปลี่ยน
+          context,
+          MaterialPageRoute(builder: (context) => const EditPro()),
+        );
+        break;
+    }
+  }
+
+
   // 5. เพิ่มฟังก์ชันสำหรับ Sign Out
   Future<void> _signOut() async {
     await FirebaseAuth.instance.signOut();
@@ -70,89 +111,16 @@ class _EditProState extends State<EditPro> {
     }
   }
 
-  // ฟังก์ชันตัวช่วยต่างๆ (โค้ดเดิมของคุณ)
-  Widget _buildWideMenuButton(String imagePath, String title) {
-    // ... โค้ดส่วนนี้เหมือนเดิม ...
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Image.asset(
-            imagePath,
-            width: 30,
-            height: 30,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              title,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF333333),
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // ▼▼▼▼▼▼ [ CODE ที่ลบ ] ▼▼▼▼▼▼
+  // ลบฟังก์ชัน _buildWideMenuButton() และ _buildSquareMenuButton()
+  // เพราะไม่ได้ใช้งานแล้ว
+  // ▲▲▲▲▲▲ [ CODE ที่ลบ ] ▲▲▲▲▲▲
 
-  Widget _buildSquareMenuButton(String imagePath, String title) {
-    // ... โค้ดส่วนนี้เหมือนเดิม ...
-     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Image.asset(
-            imagePath,
-            width: 35,
-            height: 35,
-          ),
-          const SizedBox(height: 5),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF555555),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
+  // ฟังก์ชันนี้ยังเก็บไว้ เพราะปุ่ม Logout ใช้งาน
   Widget _buildListMenuItem(IconData icon, String title, Color iconColor, VoidCallback onTapAction) {
     // ... โค้ดส่วนนี้เหมือนเดิม ...
-      return Container(
+     return Container(
       margin: const EdgeInsets.only(bottom: 10), 
       decoration: BoxDecoration(
         color: Colors.white,
@@ -206,8 +174,8 @@ class _EditProState extends State<EditPro> {
 
   @override
   Widget build(BuildContext context) {
-    const int currentIndex = 2;
-    const Color primaryIconColor = Color(0xFF00B09A);
+    // const int currentIndex = 2; // <-- ไม่ได้ใช้แล้ว เพราะเรามี _selectedIndex
+    // const Color primaryIconColor = Color(0xFF00B09A); // <-- ไม่ได้ใช้แล้ว
     const Color logoutIconColor = Colors.red;
 
     return Scaffold(
@@ -226,10 +194,10 @@ class _EditProState extends State<EditPro> {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                       borderRadius: BorderRadius.only(
-                          bottomLeft: Radius.circular(20),
-                          bottomRight: Radius.circular(20),
-                        ),
+                      borderRadius: BorderRadius.only(
+                        bottomLeft: Radius.circular(20),
+                        bottomRight: Radius.circular(20),
+                      ),
                     ),
                     child: const Center(
                       child: CircularProgressIndicator(color: Colors.white),
@@ -241,79 +209,41 @@ class _EditProState extends State<EditPro> {
                     userAddress: _userData?['customer_address'] ?? 'ไม่มีที่อยู่',
                   ),
 
-            // ส่วนเมนู (เหมือนเดิม)
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => print('สั่งสินค้า clicked'),
-                          child: _buildWideMenuButton(
-                              'assets/image/order.png', 'สั่งสินค้า'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => print('สถานะพัสดุ clicked'),
-                          child: _buildWideMenuButton(
-                              'assets/image/order2.png', 'สถานะพัสดุ'),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => print('พัสดุที่ต้องรับ clicked'),
-                          child: _buildSquareMenuButton(
-                              'assets/image/order3.png', 'พัสดุที่ต้องรับ'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: () => print('คุยกับไรเดอร์ clicked'),
-                          child: _buildSquareMenuButton(
-                              'assets/image/order4.png', 'คุยกับไรเดอร์'),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                       Expanded(
-                        child: GestureDetector(
-                          onTap: () => print('ส่วนลดแพ็กเกจ clicked'),
-                          child: _buildSquareMenuButton(
-                              'assets/image/order5.png', 'ส่วนลดแพ็กเกจ'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            // ▼▼▼▼▼▼ [ CODE ที่ลบ ] ▼▼▼▼▼▼
+            // ลบ Padding ที่ครอบปุ่ม 2 แถวบนออกทั้งหมด
+            // Padding(
+            //   padding: const EdgeInsets.all(16.0),
+            //   child: Column(
+            //     children: [
+            //       Row( ... ),
+            //       const SizedBox(height: 10),
+            //       Row( ... ),
+            //     ],
+            //   ),
+            // ),
+            // ▲▲▲▲▲▲ [ CODE ที่ลบ ] ▲▲▲▲▲▲
+
 
             // ส่วนตั้งค่าโปรไฟล์
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 10.0),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0), // <-- เพิ่ม Vartical Padding
               child: Column(
                 children: [
-                  _buildListMenuItem(
-                    Icons.person_outline,
-                    'แก้ไขข้อมูลส่วนตัว',
-                    primaryIconColor,
-                    () => print('แก้ไขข้อมูลส่วนตัว clicked'),
-                  ),
-                  _buildListMenuItem(
-                    Icons.lock_outline,
-                    'เปลี่ยนรหัสผ่าน',
-                    primaryIconColor,
-                    () => print('เปลี่ยนรหัสผ่าน clicked'),
-                  ),
+                  // ▼▼▼▼▼▼ [ CODE ที่ลบ ] ▼▼▼▼▼▼
+                  // _buildListMenuItem(
+                  //   Icons.person_outline,
+                  //   'แก้ไขข้อมูลส่วนตัว',
+                  //   primaryIconColor,
+                  //   () => print('แก้ไขข้อมูลส่วนตัว clicked'),
+                  // ),
+                  // _buildListMenuItem(
+                  //   Icons.lock_outline,
+                  //   'เปลี่ยนรหัสผ่าน',
+                  //   primaryIconColor,
+                  //   () => print('เปลี่ยนรหัสผ่าน clicked'),
+                  // ),
+                  // ▲▲▲▲▲▲ [ CODE ที่ลบ ] ▲▲▲▲▲▲
+
                   // 7. เรียกใช้ฟังก์ชัน _signOut() เมื่อกดปุ่ม
                   _buildListMenuItem(
                     Icons.logout,
@@ -329,14 +259,8 @@ class _EditProState extends State<EditPro> {
         ),
       ),
       bottomNavigationBar: BottomBar(
-        currentIndex: currentIndex,
-        onItemSelected: (index) {
-           if (index == 0) {
-            Navigator.popUntil(context, (route) => route.isFirst); 
-          } else if (index == 1) {
-            debugPrint('Navigate to Products');
-          }
-        },
+        currentIndex: _selectedIndex,
+        onItemSelected: _onItemTapped,
       ),
     );
   }

@@ -3,11 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+// Local Imports
 import 'Registration.dart';
-import 'all.dart';
-
-
-import 'package:ez_deliver_tracksure/pagerider/rider_home.dart'; //6165156>>>>>>> e1e2b5a18a18ff38ea888c113f50cb032a552e9a
+import 'all.dart'; // สมมติว่ามี HomeScreen อยู่ในนี้
+import 'package:ez_deliver_tracksure/pagerider/rider_home.dart'; // สำหรับ DeliveryHomePage
 
 
 class LoginPage extends StatefulWidget {
@@ -23,7 +22,18 @@ class _LoginPageState extends State<LoginPage> {
   bool _isPasswordObscured = true;
   bool _isLoading = false;
 
-  // ✅ ฟังก์ชันที่ถูกปรับปรุง
+  @override
+  void dispose() {
+    _loginController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  // ----------------------------------------------------------------------
+  // MARK: - Login Logic
+  // ----------------------------------------------------------------------
+
+  // ✅ ฟังก์ชันสำหรับเข้าสู่ระบบ (รวมตรรกะที่ขัดแย้งกันแล้ว)
   Future<void> _signIn() async {
     if (_loginController.text.isEmpty || _passwordController.text.isEmpty) {
       _showErrorDialog('กรุณากรอกข้อมูลให้ครบถ้วน');
@@ -35,106 +45,56 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-<<<<<<< HEAD
       final rawPhone = _loginController.text.trim();
-      // 🚀 แก้ไข: ลบอักขระที่ไม่ใช่ตัวเลขทั้งหมดออก เพื่อให้มั่นใจว่าอีเมลถูกต้อง
-      final phone = rawPhone.replaceAll(RegExp(r'[^\d]'), ''); 
+      // ลบอักขระที่ไม่ใช่ตัวเลขทั้งหมดออก เพื่อให้มั่นใจว่าเป็นเบอร์โทรศัพท์ที่ถูกต้อง
+      final phone = rawPhone.replaceAll(RegExp(r'[^\d]'), '');
       final password = _passwordController.text.trim();
-=======
-      // --- ส่วนสำคัญ: ตรวจสอบและแปลงข้อมูลการล็อกอิน ---
-      final loginInput = _loginController.text.trim();
-      String emailForAuth;
 
-      if (loginInput.contains('@')) {
-        // ถ้ามี @, ให้ถือว่าเป็นอีเมล (สำหรับ Rider)
-        emailForAuth = loginInput;
-      } else {
-        // ถ้าไม่มี @, ให้ถือว่าเป็นเบอร์โทร (สำหรับ Customer)
-        // และแปลงให้เป็นรูปแบบอีเมลที่ใช้สมัคร
-        emailForAuth = '$loginInput@tracksure.app';
-      }
-
-      // 1. ตรวจสอบกับ Firebase Authentication
-      final userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: emailForAuth,
-        password: _passwordController.text.trim(),
-      );
-
-      final user = userCredential.user;
->>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
-
-      // ✅ Email จำลองตามประเภทผู้ใช้
+      // 1. กำหนดอีเมลที่เป็นไปได้ (รูปแบบ: [phone]_[role]@tracksure.app)
       final List<String> potentialEmails = [
         '${phone}_customer@tracksure.app', // ลองเป็นลูกค้าก่อน
-        '${phone}_rider@tracksure.app',    // ถ้าไม่ได้ ลองเป็นไรเดอร์
+        '${phone}_rider@tracksure.app', // ถ้าไม่ได้ ลองเป็นไรเดอร์
       ];
 
       UserCredential? userCredential;
       bool loginSuccess = false;
 
-      // 🔁 วนลูปเพื่อลองล็อกอินด้วยอีเมลที่เป็นไปได้ทั้งหมด
+      // 2. วนลูปเพื่อลองล็อกอินด้วยอีเมลที่เป็นไปได้ทั้งหมด
       for (final email in potentialEmails) {
         try {
           userCredential = await FirebaseAuth.instance.signInWithEmailAndPassword(
             email: email,
             password: password,
           );
-<<<<<<< HEAD
           loginSuccess = true;
           break; // ล็อกอินสำเร็จแล้ว ออกจากลูป
         } on FirebaseAuthException catch (e) {
-          // ถ้าเกิดข้อผิดพลาด 'user-not-found' (ไม่เจออีเมล) 
-          // หรือ 'wrong-password' (รหัสผ่านผิดสำหรับอีเมลนี้) ให้ลองอีเมลถัดไป
-          if (e.code == 'user-not-found' || e.code == 'wrong-password' || 
-              e.code == 'invalid-credential') { // ครอบคลุม error จากภาพด้วย
+          // ถ้าเกิดข้อผิดพลาดที่ระบุว่าผู้ใช้/รหัสผ่านผิด ให้ลองอีเมลถัดไป
+          if (e.code == 'user-not-found' ||
+              e.code == 'wrong-password' ||
+              e.code == 'invalid-credential') {
             continue;
-=======
-        } else {
-          // ถ้าไม่เจอ ให้ไปค้นหาใน 'riders'
-          DocumentSnapshot riderDoc = await FirebaseFirestore.instance
-              .collection('riders')
-              .doc(user.uid)
-              .get();
-
-          if (riderDoc.exists) {
-            // ถ้าเจอใน 'riders' -> ไปยังหน้าสถานะของไรเดอร์
-            // Navigator.pushReplacement(
-            //   context,
-            //   MaterialPageRoute(builder: (context) => const StatusScreen()),
-            // );
->>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
           } else {
             // หากเกิดข้อผิดพลาดอื่น ๆ ให้หยุดและแสดงข้อผิดพลาด
-            _showErrorDialog('เกิดข้อผิดพลาด: ${e.message}');
+            _showErrorDialog('เกิดข้อผิดพลาดในการตรวจสอบสิทธิ์: ${e.message}');
             return;
           }
         }
       }
-<<<<<<< HEAD
 
       if (!loginSuccess) {
         // หากวนลูปครบแล้วแต่ยังล็อกอินไม่สำเร็จ
         _showErrorDialog('เบอร์โทรศัพท์ หรือรหัสผ่านไม่ถูกต้อง');
         return;
-=======
-    } on FirebaseAuthException catch (e) {
-      String message;
-      if (e.code == 'user-not-found' || e.code == 'wrong-password' || e.code == 'invalid-credential') {
-        message = 'เบอร์โทรศัพท์ หรือ รหัสผ่านไม่ถูกต้อง';
-      } else if (e.code == 'invalid-email') {
-        message = 'รูปแบบเบอร์โทรศัพท์ไม่ถูกต้อง';
-      } else {
-        message = 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
->>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
       }
-      
+
       final user = userCredential?.user;
       if (user == null) {
-        _showErrorDialog('ไม่สามารถเข้าสู่ระบบได้');
+        _showErrorDialog('ไม่สามารถเข้าสู่ระบบได้ (User Object Missing)');
         return;
       }
-      
-      // ⚠️ **ขั้นตอนที่ 2: ตรวจสอบ Firestore**
+
+      // 3. **ขั้นตอนที่ 2: ตรวจสอบ Firestore**
       // ตรวจสอบว่าเป็นลูกค้าหรือไรเดอร์ใน Firestore
 
       final customerDoc = await FirebaseFirestore.instance
@@ -169,8 +129,8 @@ class _LoginPageState extends State<LoginPage> {
       // Sign Out เพื่อไม่ให้ผู้ใช้ค้างอยู่ในสถานะล็อกอิน
       await FirebaseAuth.instance.signOut();
       _showErrorDialog('ไม่พบข้อมูลผู้ใช้งานในระบบ (กรุณาลงทะเบียน)');
-      
-    } catch (e) {
+    } on Exception catch (e) {
+      // จับข้อผิดพลาดที่ไม่ใช่ FirebaseAuth (เช่น Firestore error, Network error)
       _showErrorDialog('เกิดข้อผิดพลาดที่ไม่รู้จัก: ${e.toString()}');
     } finally {
       if (mounted) {
@@ -199,12 +159,17 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // ----------------------------------------------------------------------
+  // MARK: - UI Build Method
+  // ----------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: Column(
           children: [
+            // ส่วนหัว (Banner)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 40.0),
@@ -225,6 +190,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
             ),
+            // ส่วนเนื้อหาหลัก
             Expanded(
               child: SingleChildScrollView(
                 child: Padding(
@@ -243,26 +209,17 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 40),
+                      // ช่องกรอกเบอร์โทรศัพท์
                       TextField(
                         controller: _loginController,
                         style: GoogleFonts.prompt(),
-<<<<<<< HEAD
                         keyboardType: TextInputType.phone,
-=======
-                        keyboardType: TextInputType.emailAddress,
->>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
                         decoration: InputDecoration(
-                          // --- ส่วนที่ปรับปรุง ---
                           labelText: 'เบอร์โทรศัพท์',
-<<<<<<< HEAD
                           labelStyle:
                               GoogleFonts.prompt(color: Colors.green[800]),
                           prefixIcon:
                               Icon(Icons.phone, color: Colors.green[800]),
-=======
-                          labelStyle: GoogleFonts.prompt(color: Colors.green[800]),
-                          prefixIcon: Icon(Icons.person, color: Colors.green[800]),
->>>>>>> 6036dca444102d2983ebf98924c9fac32328a1af
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -274,6 +231,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
+                      // ช่องกรอกรหัสผ่าน
                       TextField(
                         controller: _passwordController,
                         obscureText: _isPasswordObscured,
@@ -308,10 +266,13 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 10),
+                      // ลืมรหัสผ่าน
                       Align(
                         alignment: Alignment.centerRight,
                         child: TextButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            // TODO: Add forgot password logic
+                          },
                           child: Text(
                             'ลืมรหัสผ่าน?',
                             style: GoogleFonts.prompt(
@@ -322,6 +283,7 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
+                      // ปุ่มเข้าสู่ระบบ
                       ElevatedButton(
                         onPressed: _isLoading ? null : _signIn,
                         style: ElevatedButton.styleFrom(
@@ -343,6 +305,7 @@ class _LoginPageState extends State<LoginPage> {
                             : const Text('เข้าสู่ระบบ'),
                       ),
                       const SizedBox(height: 20),
+                      // สมัครสมาชิก
                       Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
@@ -377,12 +340,5 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
-  }
-
-  @override
-  void dispose() {
-    _loginController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 }
