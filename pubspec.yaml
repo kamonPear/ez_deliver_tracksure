@@ -48,6 +48,7 @@ dependencies:
   http: ^1.2.1
   geolocator: ^12.0.0
   cached_network_image: ^3.4.0
+  flutter_launcher_icons: ^0.13.1
   
 dev_dependencies:
   flutter_test:
@@ -62,7 +63,11 @@ dev_dependencies:
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
-
+flutter_launcher_icons:
+  android: "launcher_icon" # ตั้งค่าสำหรับ Android
+  ios: true                # ตั้งค่าสำหรับ iOS
+  image_path: "assets/image/logodelivery.png" # <-- แก้เป็นชื่อไฟล์โลโก้ของคุณ
+  min_sdk_android: 21
 # The following section is specific to Flutter packages.
 flutter:
 
