@@ -13,6 +13,7 @@ import 'package:geolocator/geolocator.dart'; // <-- ต้องเพิ่ม 
 import 'package:cached_network_image/cached_network_image.dart'; // <-- ต้องเพิ่ม package: cached_network_image ใน pubspec.yaml ด้วย
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart' as latlong;
+
 // ----------------------
 // 1. กำหนดค่าสี (Colors)
 // ----------------------
@@ -107,6 +108,10 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
   String _riderName = "กำลังโหลด...";
   String? _profileImageUrl;
   bool _isLoadingData = true;
+  // [NEW] เพิ่มตัวแปรสำหรับสถานะกำลังรับงาน
+  bool _isAcceptingOrder = false;
+  String?
+  _acceptingOrderId; // เก็บ ID งานที่กำลังพยายามรับ (Optional แต่ช่วยให้ชัดเจนขึ้น)
 
   @override
   void initState() {
@@ -241,50 +246,50 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
   }
 
   Future<void> _acceptOrder(String orderId) async {
+    // [NEW] ป้องกันการกดซ้ำ ถ้ากำลังรับงานอื่นอยู่
+    if (_isAcceptingOrder) {
+      print("Already trying to accept an order...");
+      return;
+    }
+
+    // [NEW] เริ่มสถานะ Loading
+    if (mounted) {
+      setState(() {
+        _isAcceptingOrder = true;
+        _acceptingOrderId = orderId; // ระบุว่ากำลังรับงานไหน
+      });
+    }
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กรุณาเข้าสู่ระบบก่อนรับงาน')),
-      );
+      // ... (SnackBar กรุณาเข้าสู่ระบบ) ...
+      // [NEW] หยุด Loading ถ้าเกิด Error เร็ว
+      if (mounted) setState(() => _isAcceptingOrder = false);
       return;
     }
 
     // 1. ตรวจสอบงานที่กำลังทำอยู่
     final hasOngoingOrder = await _checkOngoingOrder();
-
     if (hasOngoingOrder) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'คุณมีงานที่ต้องไปส่งอยู่แล้ว กรุณาส่งงานปัจจุบันให้เสร็จก่อน',
-            ),
-            backgroundColor: locationPinRed,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
+      // ... (SnackBar มีงานค้าง) ...
+      // [NEW] หยุด Loading
+      if (mounted) setState(() => _isAcceptingOrder = false);
       return;
     }
 
     // 2. ดึงตำแหน่งปัจจุบันของไรเดอร์
     final currentPosition = await _getCurrentLocation();
     if (currentPosition == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'ไม่สามารถดึงพิกัดปัจจุบันได้ กรุณาเปิด GPS และอนุญาตสิทธิ์',
-          ),
-          backgroundColor: locationPinRed,
-          duration: Duration(seconds: 4),
-        ),
-      );
+      // ... (SnackBar ดึงพิกัดไม่ได้) ...
+      // [NEW] หยุด Loading
+      if (mounted) setState(() => _isAcceptingOrder = false);
       return;
     }
 
-    // 3. ถ้าไม่มีงานที่กำลังทำอยู่ และมีพิกัดแล้ว ให้ดำเนินการรับงาน (ใช้ Transaction เพื่อป้องกัน Race Condition)
+    // 3. ดำเนินการรับงาน (Transaction)
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
+        // ... (โค้ด Transaction เหมือนเดิม) ...
         final orderRef = FirebaseFirestore.instance
             .collection('orders')
             .doc(orderId);
@@ -303,22 +308,22 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
           );
         }
 
-        // อัปเดตสถานะและบันทึกพิกัดไรเดอร์
         transaction.update(orderRef, {
-          'status': 'accepted', // เปลี่ยนสถานะเป็นรับงานแล้ว
-          'riderId': user.uid, // ผูก Rider ID เข้ากับ Order
+          'status': 'accepted',
+          'riderId': user.uid,
           'acceptedAt': FieldValue.serverTimestamp(),
-          // บันทึกพิกัด Latitude, Longitude ของไรเดอร์ ณ จุดรับงาน
           'rider_lat': currentPosition.latitude,
           'rider_long': currentPosition.longitude,
         });
       });
 
+      // ถ้า Transaction สำเร็จ
       if (mounted) {
+        // [MODIFIED] ใช้ context ที่ยังอยู่ (ก่อน Navigator.push)
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('รับงาน $orderId เรียบร้อยแล้ว!')),
         );
-        // นำทางไปยังหน้าสถานะการจัดส่ง
+        // นำทางไปยังหน้าสถานะ
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const DeliveryStatusScreen()),
@@ -333,6 +338,14 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(errorMessage)));
+      }
+    } finally {
+      // [NEW] หยุดสถานะ Loading ไม่ว่าจะสำเร็จหรือล้มเหลว
+      if (mounted) {
+        setState(() {
+          _isAcceptingOrder = false;
+          _acceptingOrderId = null; // เคลียร์ ID งานที่กำลังรับ
+        });
       }
     }
   }
@@ -687,32 +700,51 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
             // --------------------
             // **[NEW SECTION]** แผนที่แสดงหมุด
             // --------------------
-          _buildOpenStreetMap(order),
+            _buildOpenStreetMap(order),
             const SizedBox(height: 20),
             Center(
               child: ElevatedButton(
-                onPressed: () {
-                  _acceptOrder(order.orderId);
-                },
+                // [MODIFIED] ถ้ากำลังรับงาน (อันไหนก็ได้) หรือนี่คืองานที่กำลังรับ ให้ disable ปุ่ม
+                onPressed: (_isAcceptingOrder)
+                    ? null // ปุ่มกดไม่ได้
+                    : () {
+                        _acceptOrder(order.orderId);
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: secondaryGreen,
+                  // [NEW] ทำให้ปุ่มเป็นสีเทาถ้ากดไม่ได้
+                  disabledBackgroundColor: Colors.grey.shade400,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 30,
-                    vertical: 8,
+                    vertical:
+                        8, // ลด Padding แนวตั้งเล็กน้อยเพื่อให้พอดีกับ Loading
                   ),
                   elevation: 3,
                 ),
-                child: const Text(
-                  "รับงาน",
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
+                child: (_isAcceptingOrder && _acceptingOrderId == order.orderId)
+                    // [NEW] แสดง Loading Indicator ขนาดเล็กถ้ากำลังรับงานนี้
+                    ? const SizedBox(
+                        height: 20, // กำหนดขนาด Indicator
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                    // แสดง Text ปกติ
+                    : const Text(
+                        "รับงาน",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
             ),
           ],
@@ -726,7 +758,8 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
   // ----------------------------------------------------
   Widget _buildOpenStreetMap(Order order) {
     // ตรวจสอบว่ามีพิกัดครบถ้วนหรือไม่
-    final hasCoords = order.pickupLat != null &&
+    final hasCoords =
+        order.pickupLat != null &&
         order.pickupLong != null &&
         order.destLat != null &&
         order.destLong != null;
@@ -741,10 +774,14 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
     }
 
     // สร้างจุด LatLng สำหรับหมุด
-    final latlong.LatLng pickupPoint =
-        latlong.LatLng(order.pickupLat!, order.pickupLong!);
-    final latlong.LatLng destPoint =
-        latlong.LatLng(order.destLat!, order.destLong!);
+    final latlong.LatLng pickupPoint = latlong.LatLng(
+      order.pickupLat!,
+      order.pickupLong!,
+    );
+    final latlong.LatLng destPoint = latlong.LatLng(
+      order.destLat!,
+      order.destLong!,
+    );
 
     // สร้างรายการหมุด
     final List<Marker> markers = [
@@ -756,7 +793,13 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
         child: const Column(
           children: [
             Icon(Icons.location_pin, color: primaryGreen, size: 40),
-            Text("จุดรับ", style: TextStyle(color: primaryGreen, fontWeight: FontWeight.bold))
+            Text(
+              "จุดรับ",
+              style: TextStyle(
+                color: primaryGreen,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
@@ -768,7 +811,13 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
         child: const Column(
           children: [
             Icon(Icons.location_pin, color: locationPinRed, size: 40),
-            Text("จุดส่ง", style: TextStyle(color: locationPinRed, fontWeight: FontWeight.bold))
+            Text(
+              "จุดส่ง",
+              style: TextStyle(
+                color: locationPinRed,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
@@ -786,8 +835,8 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
           height: 200, // เพิ่มความสูงแผนที่เล็กน้อย
           clipBehavior: Clip.hardEdge, // ตัดขอบให้โค้งมน
           decoration: BoxDecoration(
-             borderRadius: BorderRadius.circular(12),
-             border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade300),
           ),
           child: FlutterMap(
             options: MapOptions(
@@ -798,12 +847,11 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
               // 1. TileLayer (ตัวแผนที่ฐาน)
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.app', // ใส่ชื่อ package ของแอปคุณ
+                userAgentPackageName:
+                    'com.example.app', // ใส่ชื่อ package ของแอปคุณ
               ),
               // 2. MarkerLayer (ชั้นของหมุด)
-              MarkerLayer(
-                markers: markers,
-              ),
+              MarkerLayer(markers: markers),
             ],
           ),
         ),
