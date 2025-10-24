@@ -9,12 +9,12 @@ import 'pages/index.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-  
+
   // ตั้งค่าให้ Firestore สามารถทำงานแบบ Offline ได้
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
-  
+
   runApp(const MyApp());
 }
 
