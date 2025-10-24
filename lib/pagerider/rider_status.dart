@@ -1,36 +1,37 @@
-import 'dart:async';
 import 'dart:io';
+// [NEW] Import สำหรับ Timer และ StreamSubscription
+import 'dart:async';
 
-// Flutter Core Imports
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-// Package Imports (External Libraries)
+// [NEW] Import สำหรับ Flutter Map และพิกัด
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-// +++ เพิ่ม GEOLOCATOR +++
-import 'package:geolocator/geolocator.dart'; 
-// +++
 
-// Firebase Imports
+// [NEW] Import สำหรับการติดตามตำแหน่ง
+import 'package:geolocator/geolocator.dart';
+
+// [NEW] เพิ่ม Firebase Imports ที่จำเป็น
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Cloudinary Imports (สมมติว่าไฟล์นี้มีอยู่จริง)
-import 'package:ez_deliver_tracksure/api/api_service_image.dart'; 
-
-// Local Imports (สมมติว่าไฟล์เหล่านี้มีอยู่จริง)
-import 'rider_bottom_bar.dart'; 
-import 'rider_home.dart'; 
-import 'package:ez_deliver_tracksure/pages/login.dart'; 
+// Local Imports
+// สมมติว่าไฟล์เหล่านี้มีอยู่จริง (ตามโค้ดต้นฉบับ)
+// (หากไฟล์เหล่านี้ของคุณอยู่ที่อื่น กรุณาแก้ไข path ให้ถูกต้อง)
+import 'rider_bottom_bar.dart';
+import 'rider_home.dart';
+import 'package:ez_deliver_tracksure/pages/login.dart';
 
 // **********************************************
 // 1. CLASS สำหรับเก็บสถานะรูปภาพชั่วคราว (Cache)
 // **********************************************
 class RiderImageCache {
+  // ทำให้เป็น static เพื่อให้เข้าถึงได้จากทุกที่และไม่ถูกทำลายเมื่อ Widget Rebuild
   static File? deliveryImage;
   static File? successImage;
 
+  // ฟังก์ชันสำหรับล้างค่าเมื่อจัดส่งสำเร็จ
   static void clearCache() {
     deliveryImage = null;
     successImage = null;
@@ -38,7 +39,7 @@ class RiderImageCache {
 }
 
 // ----------------------
-// 2. Order Model (ไม่เปลี่ยนแปลง)
+// Order Model
 // ----------------------
 class Order {
   final String orderId;
@@ -50,13 +51,16 @@ class Order {
   final String receiverName;
   final String receiverPhone;
   final String? productImageUrl;
-  final String? pickupImageUrl; // URL รูปที่ไรเดอร์ถ่ายตอนรับของ
-  final String? deliveryImageUrl; // URL รูปที่ไรเดอร์ถ่ายตอนส่งของ
   final String status;
   final double? destinationLatitude;
   final double? destinationLongitude;
+  // [ADDED] เพิ่มพิกัดสำหรับจุดรับสินค้า
   final double? pickupLatitude;
   final double? pickupLongitude;
+
+  // [ADDED] เพิ่มพิกัดไรเดอร์ (จากฐานข้อมูล)
+  final double? riderLatitude;
+  final double? riderLongitude;
 
   Order({
     required this.orderId,
@@ -68,13 +72,15 @@ class Order {
     required this.receiverName,
     required this.receiverPhone,
     this.productImageUrl,
-    this.pickupImageUrl,
-    this.deliveryImageUrl,
     this.status = 'accepted',
     this.destinationLatitude,
     this.destinationLongitude,
+    // [MODIFIED] เพิ่มพารามิเตอร์สำหรับพิกัดต้นทาง
     this.pickupLatitude,
     this.pickupLongitude,
+    // [ADDED] เพิ่มพิกัดไรเดอร์
+    this.riderLatitude,
+    this.riderLongitude,
   });
 
   factory Order.fromFirestore(DocumentSnapshot doc) {
@@ -89,28 +95,32 @@ class Order {
       orderId: doc.id,
       createdDate: createdAtTimestamp?.toDate(),
       customerName: data['customerName'] ?? 'ไม่ระบุลูกค้า',
-      destination: data['destination'] ?? 'ไม่ระระบุปลายทาง',
-      pickupLocation: data['pickupLocation'] ?? 'ไม่ระระบุต้นทาง',
+      destination: data['destination'] ?? 'ไม่ระบุปลายทาง',
+      pickupLocation: data['pickupLocation'] ?? 'ไม่ระบุต้นทาง',
       productDescription: data['productDescription'] ?? 'ไม่ระบุสินค้า',
-      receiverName: data['receiverName'] ?? 'ไม่ระระบุผู้รับ',
+      receiverName: data['receiverName'] ?? 'ไม่ระบุผู้รับ',
+      // ดึงเบอร์โทรผู้รับจาก 'receiverPhone'
       receiverPhone: data['receiverPhone'] ?? 'ไม่ระบุเบอร์โทร',
       productImageUrl: data['productImageUrl'],
-      pickupImageUrl: data['pickupImageUrl'],
-      deliveryImageUrl: data['deliveryImageUrl'],
       status: data['status'] ?? 'accepted',
+      // [MODIFIED] ดึงและแปลง Lat/Lng ปลายทาง
       destinationLatitude: (data['destination_latitude'] as num?)?.toDouble(),
       destinationLongitude: (data['destination_longitude'] as num?)?.toDouble(),
+      // [ADDED] ดึงและแปลง Lat/Lng ต้นทาง
       pickupLatitude: (data['pickup_latitude'] as num?)?.toDouble(),
       pickupLongitude: (data['pickup_longitude'] as num?)?.toDouble(),
+      // [ADDED] ดึงพิกัดไรเดอร์ (จาก JSON ที่คุณให้มา)
+      riderLatitude: (data['rider_lat'] as num?)?.toDouble(),
+      riderLongitude: (data['rider_long'] as num?)?.toDouble(),
     );
   }
 }
 
 // ----------------------
-// 3. DeliveryStatusScreen Widget
+// 2. DeliveryStatusScreen
 // ----------------------
 class DeliveryStatusScreen extends StatefulWidget {
-  final Order? acceptedOrder;
+  final Order? acceptedOrder; // ทำให้เป็น optional
 
   const DeliveryStatusScreen({super.key, this.acceptedOrder});
 
@@ -122,134 +132,174 @@ class DeliveryStatusScreen extends StatefulWidget {
 }
 
 class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
+  // [ADDED] ตัวแปรสำหรับเก็บ Order ล่าสุดจาก Stream
   Order? _currentOrderFromStream;
 
-  // ตัวแปรสำหรับสถานะการอัปโหลด
-  bool _isUploadingPhoto = false;
-
-  // สร้าง Instance ของ ImageUploadService
-  final ImageUploadService _imageUploadService = ImageUploadService();
-  
-  // +++ [NEW CODE: Location Tracking] +++
+  // [NEW] ตัวแปรสำหรับการติดตามตำแหน่ง
   StreamSubscription<Position>? _positionStreamSubscription;
-  final String? _riderId = FirebaseAuth.instance.currentUser?.uid; 
-  // +++
+  LatLng? _currentRiderLocation; // ตำแหน่ง GPS สดของไรเดอร์
+  Timer? _firestoreUpdateTimer;
+  bool _isLocationServiceEnabled = false;
 
+  // [NEW] Map Controller
+  final MapController _mapController = MapController();
+  bool _mapInitialized = false;
 
   @override
   void initState() {
     super.initState();
-    // +++ [NEW CALL] +++
-    // เริ่มติดตามและอัปเดตตำแหน่งเมื่อเข้าหน้านี้
-    _checkPermissionAndStartLocationUpdates();
-    // +++
+    // [NEW] เริ่มต้นการติดตามตำแหน่งเมื่อ Widget ถูกสร้าง
+    // (จะเริ่มทำงานจริงๆ เมื่อมี Order ใน StreamBuilder)
   }
 
   @override
   void dispose() {
-    // +++ [NEW DISPOSE] +++
-    _positionStreamSubscription?.cancel();
-    // +++
+    // [NEW] หยุดการติดตามและยกเลิก Timer ทั้งหมดเมื่อ Widget ถูกทำลาย
+    _stopLocationTracking();
+    _mapController.dispose();
     super.dispose();
   }
 
-  // ----------------------------------------------------------
-  // MARK: - Location Logic 🚀 (NEW SECTION)
-  // ----------------------------------------------------------
+  // [NEW] หยุดการติดตามตำแหน่งและ Timer
+  void _stopLocationTracking() {
+    _positionStreamSubscription?.cancel();
+    _firestoreUpdateTimer?.cancel();
+    _positionStreamSubscription = null;
+    _firestoreUpdateTimer = null;
+    _isLocationServiceEnabled = false; // รีเซ็ตสถานะ
+    if (mounted) {
+      setState(() {
+        _currentRiderLocation = null;
+      });
+    }
+  }
 
-  Future<void> _checkPermissionAndStartLocationUpdates() async {
+  // [NEW] ฟังก์ชันเริ่มต้นกระบวนการติดตามตำแหน่ง
+  Future<void> _initializeLocationTracking() async {
+    // ป้องกันการรันซ้ำ
+    if (_isLocationServiceEnabled) return;
+
+    // 1. ตรวจสอบสิทธิ์และบริการ
+    bool hasPermission = await _checkAndRequestLocationPermissions();
+    if (!hasPermission) {
+      print("Location permission denied.");
+      // อาจแสดง Dialog แจ้งผู้ใช้
+      return; // หยุดทำงานถ้าไม่ได้รับสิทธิ์
+    }
+
+    if (mounted) {
+      setState(() {
+        _isLocationServiceEnabled = true;
+      });
+    }
+
+    // 2. เริ่มรับตำแหน่งแบบ Real-time
+    _startLocationStream();
+
+    // 3. เริ่ม Timer อัปเดต Firestore (10 วินาที)
+    _startFirestoreUpdateTimer();
+  }
+
+  // [NEW] ฟังก์ชันตรวจสอบและขอสิทธิ์การเข้าถึงตำแหน่ง
+  Future<bool> _checkAndRequestLocationPermissions() async {
     bool serviceEnabled;
     LocationPermission permission;
 
-    // ตรวจสอบบริการ GPS
+    // ตรวจสอบว่า Location Service เปิดอยู่หรือไม่
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      if(mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('กรุณาเปิด GPS เพื่อให้สามารถติดตามตำแหน่งได้', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
-        );
-      }
-      return;
+      print("Location services are disabled.");
+      // TODO: อาจจะแสดง dialog แจ้งเตือนผู้ใช้ให้เปิด GPS
+      return false;
     }
 
-    // ตรวจสอบสิทธิ์
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        if(mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('การอนุญาตตำแหน่งถูกปฏิเสธ', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
-          );
-        }
-        return;
+        print("Location permissions are denied.");
+        return false;
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      if(mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('กรุณาไปตั้งค่าเพื่ออนุญาตการเข้าถึงตำแหน่งแบบถาวร', style: TextStyle(color: Colors.white)), backgroundColor: Colors.red),
-        );
-      }
-      return;
+      print("Location permissions are permanently denied.");
+      // TODO: แสดง dialog ให้ผู้ใช้ไปเปิดใน Settings
+      return false;
     }
 
-    // เริ่มอัปเดตตำแหน่งถ้าทุกอย่างพร้อม
-    _startLocationUpdates();
+    // ถ้าผ่านหมด แสดงว่าได้รับสิทธิ์
+    return true;
   }
 
-  void _startLocationUpdates() {
-    if (_riderId == null) return;
+  // [NEW] ฟังก์ชันเริ่มรับตำแหน่งจาก Geolocator
+  void _startLocationStream() {
+    if (!_isLocationServiceEnabled) return;
 
-    // ตั้งค่าความถี่ในการอัปเดต (High accuracy, อัปเดตทุก 10 เมตร)
+    // ตั้งค่าความแม่นยำ
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
-      distanceFilter: 10, 
+      distanceFilter: 10, // อัปเดตทุก 10 เมตร
     );
 
-    // ยกเลิกการ Stream เก่าถ้ามี
-    _positionStreamSubscription?.cancel();
-    
-    // เริ่ม Stream ตำแหน่ง
-    _positionStreamSubscription = Geolocator.getPositionStream(
-      locationSettings: locationSettings
-    ).listen(
-      (Position position) {
-        // อัปเดตตำแหน่งไปยัง Firestore collection 'riders'
-        _updateRiderLocation(position);
-      },
-      onError: (e) {
-        print("Error getting location updates: $e");
-      }
-    );
-    print("Location stream started for rider: $_riderId");
+    _positionStreamSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          (Position position) {
+            if (mounted) {
+              // อัปเดต State เพื่อให้ Map แสดง Marker ใหม่
+              setState(() {
+                _currentRiderLocation = LatLng(
+                  position.latitude,
+                  position.longitude,
+                );
+              });
+            }
+          },
+          onError: (e) {
+            print("Error getting location stream: $e");
+          },
+        );
   }
 
-  Future<void> _updateRiderLocation(Position position) async {
-    if (_riderId == null) return;
-    
-    // อัปเดตตำแหน่งปัจจุบันของไรเดอร์ไปยัง Collection 'riders'
+  // [NEW] ฟังก์ชันเริ่ม Timer สำหรับอัปเดต Firestore (ทุก 10 วินาที)
+  void _startFirestoreUpdateTimer() {
+    // ยกเลิก Timer เก่า (ถ้ามี)
+    _firestoreUpdateTimer?.cancel();
+
+    _firestoreUpdateTimer = Timer.periodic(const Duration(seconds: 10), (
+      timer,
+    ) {
+      // ตรวจสอบว่ามี Order และมีตำแหน่งปัจจุบันหรือไม่
+      if (_currentOrderFromStream != null && _currentRiderLocation != null) {
+        _updateRiderLocationInFirestore(
+          _currentOrderFromStream!.orderId,
+          _currentRiderLocation!,
+        );
+      }
+    });
+  }
+
+  // [NEW] ฟังก์ชันอัปเดตพิกัดไรเดอร์ลง Firestore
+  Future<void> _updateRiderLocationInFirestore(
+    String orderId,
+    LatLng location,
+  ) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('riders')
-          .doc(_riderId)
-          .update({
-            'current_latitude': position.latitude,
-            'current_longitude': position.longitude,
-            'last_updated': FieldValue.serverTimestamp(),
-          });
-      // print("Rider location updated: ${position.latitude}, ${position.longitude}");
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update(
+        {
+          'rider_lat': location.latitude,
+          'rider_long': location.longitude,
+          'rider_last_seen': FieldValue.serverTimestamp(), // (Optional)
+        },
+      );
+      print("Rider location updated for $orderId");
     } catch (e) {
-      print("Error updating rider location in Firestore: $e");
+      print("Error updating rider location: $e");
+      // ไม่แสดง SnackBar เพราะจะรบกวนผู้ใช้ทุก 10 วินาที
     }
   }
 
-
-  // ----------------------------------------------------------
-  // MARK: - Firebase & Data Logic (ส่วนเดิม)
-  // ----------------------------------------------------------
-  
+  // [NEW] Stream สำหรับดึงงานที่ไรเดอร์ปัจจุบันรับอยู่
   Stream<Order?> _fetchOngoingOrderStream() {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return Stream.value(null);
@@ -257,25 +307,24 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     return FirebaseFirestore.instance
         .collection('orders')
         .where('riderId', isEqualTo: user.uid)
-        // เราจะแสดงจนถึง 'delivered'
-        .where('status',
-            whereIn: ['accepted', 'pickedUp', 'inTransit', 'delivered'])
+        // [MODIFIED] กรองสถานะ 'delivered' ออกจากรายการที่ต้องแสดงในหน้าสถานะ
+        .where('status', whereIn: ['accepted', 'pickedUp', 'inTransit'])
         .limit(1)
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isNotEmpty) {
-        return Order.fromFirestore(snapshot.docs.first);
-      }
-      return null;
-    });
+          if (snapshot.docs.isNotEmpty) {
+            return Order.fromFirestore(snapshot.docs.first);
+          }
+          return null;
+        });
   }
 
+  // [NEW FUNCTION] อัปเดตสถานะของงานใน Firestore
   Future<void> _updateOrderStatus(String orderId, String newStatus) async {
     try {
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(orderId)
-          .update({'status': newStatus});
+      await FirebaseFirestore.instance.collection('orders').doc(orderId).update(
+        {'status': newStatus},
+      );
 
       print("Order $orderId status updated to: $newStatus");
     } catch (e) {
@@ -291,71 +340,19 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     }
   }
 
-  /// ฟังก์ชันสำหรับอัปโหลดรูปภาพด้วย Cloudinary และอัปเดต Firestore
-  Future<void> _uploadImageAndUpdateFirestore(
-      File imageFile, String orderId, String imageFieldName, String? newStatus) async {
-    
-    try {
-      // 1. อัปโหลดไฟล์ไปยัง Cloudinary
-      final String? downloadUrl =
-          await _imageUploadService.uploadImageToCloudinary(imageFile);
-
-      if (downloadUrl == null) {
-        throw Exception("Cloudinary upload failed: received null URL");
-      }
-
-      // 2. สร้าง Map สำหรับอัปเดต Firestore
-      final Map<String, dynamic> updateData = {
-        imageFieldName: downloadUrl, 
-      };
-
-      // 3. (Optional) เพิ่มการอัปเดตสถานะถ้ามี
-      if (newStatus != null) {
-        updateData['status'] = newStatus; 
-      }
-
-      // 4. อัปเดต Firestore
-      await FirebaseFirestore.instance
-          .collection('orders')
-          .doc(orderId)
-          .update(updateData);
-
-      print("Firestore updated: $imageFieldName and status $newStatus with Cloudinary URL");
-      
-    } catch (e) {
-      print("Error uploading image to Cloudinary/Firestore: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('อัปโหลดรูปภาพล้มเหลว: $e')),
-        );
-      }
-      rethrow; 
-    }
-  }
-
-
   // 3. ฟังก์ชันสำหรับเลือกรูปภาพจาก Camera หรือ Gallery
   Future<void> _pickImage(ImageSource source, int photoIndex) async {
-    
-    // ป้องกันการอัปโหลดซ้ำซ้อน
-    if (_isUploadingPhoto) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('กำลังอัปโหลดรูปภาพก่อนหน้า...')),
-      );
-      return;
-    }
-    
-    if (mounted) setState(() => _isUploadingPhoto = true); // เริ่มโหลด
-
+    // [MODIFIED] ดึง Order ล่าสุดจากตัวแปร State
     final Order? currentOrder = _currentOrderFromStream;
 
     if (currentOrder == null) {
       if (mounted) {
-        setState(() => _isUploadingPhoto = false); // หยุดโหลดถ้าไม่มีงาน
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content:
-                  Text('ไม่พบงานที่กำลังจัดส่ง กรุณากลับไปหน้าหลักเพื่อรับงาน')),
+            content: Text(
+              'ไม่พบงานที่กำลังจัดส่ง กรุณากลับไปหน้าหลักเพื่อรับงาน',
+            ),
+          ),
         );
       }
       return;
@@ -365,202 +362,31 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     final pickedFile = await picker.pickImage(source: source, imageQuality: 80);
 
     if (pickedFile != null) {
-      final newImage = File(pickedFile.path);
-
-      // อัปเดต UI (Cache) ทันที
       setState(() {
+        final newImage = File(pickedFile.path);
         if (photoIndex == 0) {
+          // [MODIFIED] บันทึกใน Static Cache
           RiderImageCache.deliveryImage = newImage;
+
+          // [CORE MODIFICATION] เมื่อถ่ายรูป "ฉันได้รับสินค้าแล้ว" (photoIndex 0)
+          // ให้อัปเดตสถานะเป็น 'inTransit' (กำลังเดินทาง) ทันที
+          // ตรวจสอบสถานะเดิมก่อนอัปเดตเพื่อไม่ให้เรียกซ้ำ
+          if (currentOrder.status == 'accepted' ||
+              currentOrder.status == 'pickedUp') {
+            _updateOrderStatus(currentOrder.orderId, 'inTransit');
+          }
         } else if (photoIndex == 1) {
+          // [MODIFIED] บันทึกใน Static Cache
           RiderImageCache.successImage = newImage;
+
+          // **[แก้ไขตามคำขอ: ลบการเปลี่ยนสถานะอัตโนมัติออก]**
+          // การเปลี่ยนสถานะเป็น 'delivered' และการนำทางจะทำเมื่อกดยืนยันการจัดส่งเท่านั้น
         }
       });
-
-      // --- เริ่มการอัปโหลดรูปภาพไปยัง Cloudinary ---
-      try {
-        if (photoIndex == 0) {
-          // 1. อัปโหลดรูปภาพรับสินค้า (ไม่เปลี่ยนสถานะทันที)
-          await _uploadImageAndUpdateFirestore(
-            newImage,
-            currentOrder.orderId,
-            'pickupImageUrl', 
-            null, 
-          );
-
-          if (mounted) {
-            // แจ้งเตือนไรเดอร์ว่ารูปอัปโหลดแล้ว และจะเริ่มนับถอยหลัง
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                    'อัปโหลดรูปรับสินค้าสำเร็จ! สถานะ "กำลังไปส่งของ" จะอัปเดตใน 30 วินาที'),
-                backgroundColor: Colors.blue,
-                duration: Duration(seconds: 4),
-              ),
-            );
-            
-            // 2. หน่วงเวลา 30 วินาที แล้วอัปเดตสถานะเป็น 'inTransit'
-            Future.delayed(const Duration(seconds: 30), () async {
-              try {
-                // ตรวจสอบว่ายังเป็นออเดอร์เดิม และยังไม่ได้ถูกส่งสำเร็จ
-                if (_currentOrderFromStream?.orderId == currentOrder.orderId && 
-                    _currentOrderFromStream?.status != 'delivered' && 
-                    _currentOrderFromStream?.status != 'completed') {
-                        
-                    await _updateOrderStatus(currentOrder.orderId, 'inTransit');
-
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('สถานะงานเปลี่ยนเป็น "กำลังไปส่งของ" แล้ว'),
-                          backgroundColor: DeliveryStatusScreen.primaryColor,
-                          duration: Duration(seconds: 3),
-                        ),
-                      );
-                    }
-                }
-              } catch (e) {
-                print("Error in delayed status update: $e");
-              }
-            });
-          }
-
-        } else if (photoIndex == 1) {
-          // นี่คือ "รูปส่งสำเร็จ"
-          await _uploadImageAndUpdateFirestore(
-            newImage,
-            currentOrder.orderId,
-            'deliveryImageUrl', 
-            null, 
-          );
-        }
-      } catch (e) {
-        // หากมีข้อผิดพลาดในการอัปโหลด
-        if (mounted) {
-          setState(() {
-            if (photoIndex == 0) {
-              RiderImageCache.deliveryImage = null;
-            } else if (photoIndex == 1) {
-              RiderImageCache.successImage = null;
-            }
-          });
-        }
-        // ไม่ต้องทำอะไรเพิ่ม เนื่องจาก _uploadImageAndUpdateFirestore จัดการ SnackBar ไปแล้ว
-      } finally {
-        if (mounted) setState(() => _isUploadingPhoto = false);
-      }
-    } else {
-      // ถ้าไม่ได้เลือกรูป
-      if (mounted) setState(() => _isUploadingPhoto = false);
     }
   }
 
-
-  // [MODIFIED FUNCTION] ฟังก์ชันยืนยันการจัดส่ง
-  Future<void> _confirmDelivery(Order order) async {
-    
-    // ตรวจสอบว่ากำลังอัปโหลดรูปอยู่หรือไม่
-    if (_isUploadingPhoto) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('กรุณารอการอัปโหลดรูปภาพให้เสร็จสิ้น...')),
-        );
-      return;
-    }
-    
-    // 1. ตรวจสอบว่ารูปภาพครบ 2 รูปหรือไม่ (จาก Cache)
-    final bool hasAllPhotos = RiderImageCache.deliveryImage != null &&
-        RiderImageCache.successImage != null;
-
-    // 2. ตรวจสอบเงื่อนไขการสิ้นสุดงาน (ต้องมีรูปภาพครบ AND สถานะเป็น 'delivered' แล้ว)
-    // Note: 'delivered' คือสถานะที่กดครั้งที่ 1
-    final bool isReadyToComplete = hasAllPhotos && order.status == 'delivered';
-
-    // ----------------------------------------------------
-    // กรณีที่ 1: รูปภาพครบ แต่สถานะยังไม่เป็น 'delivered' (กดยืนยันครั้งที่ 1)
-    // ----------------------------------------------------
-    if (hasAllPhotos && order.status != 'delivered') {
-      // อัปเดตสถานะเป็น 'delivered'
-      await _updateOrderStatus(order.orderId, 'delivered');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('รูปภาพครบ! กรุณากดปุ่ม "สิ้นสุดงานจัดส่ง" อีกครั้งเพื่อจบงาน'),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
-          ),
-        );
-      }
-      return; 
-    }
-
-    // ----------------------------------------------------
-    // กรณีที่ 2: เงื่อนไขการจบงานครบถ้วน (isReadyToComplete == true) (กดยืนยันครั้งที่ 2)
-    // ----------------------------------------------------
-    if (isReadyToComplete) {
-      try {
-        
-        // 1. เปลี่ยนสถานะเป็น 'completed' เพื่อเก็บประวัติ
-        await FirebaseFirestore.instance
-            .collection('orders')
-            .doc(order.orderId)
-            .update({'status': 'completed'});
-            
-        // 2. ล้าง Cache รูปภาพและหยุด Location Tracking
-        RiderImageCache.clearCache();
-        _positionStreamSubscription?.cancel(); // **สำคัญ: หยุดส่งตำแหน่ง**
-
-        // 3. แจ้งเตือน (Snackbar)
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('สิ้นสุดงานจัดส่งสำเร็จ! ✅ ID: ${order.orderId}'),
-              backgroundColor: const Color(0xFF4CAF50),
-              duration: const Duration(seconds: 3),
-            ),
-          );
-
-          // 4. นำทางกลับไปหน้าหลัก (หน้ารับงาน)
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const DeliveryHomePage()), // ไปหน้า Home
-            (route) => false,
-          );
-        }
-      } catch (e) {
-        print("Error completing delivery: $e");
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('เกิดข้อผิดพลาดในการสิ้นสุดการจัดส่ง'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
-      return;
-    }
-
-    // ----------------------------------------------------
-    // กรณีที่ 3: รูปยังไม่ครบ (แสดงข้อความเตือน)
-    // ----------------------------------------------------
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('กรุณาอัปโหลดรูปภาพสถานะให้ครบก่อนยืนยัน'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 4),
-        ),
-      );
-    }
-  }
-
-  // ----------------------------------------------------------
-  // MARK: - UI Helper Functions (Bottom Sheets)
-  // ----------------------------------------------------------
-
-  // 5. ฟังก์ชันสำหรับแสดง Bottom Sheet
+  // 5. ฟังก์ชันสำหรับแสดง Bottom Sheet เพื่อเลือกแหล่งที่มาของรูปภาพ
   void _showImageSourceActionSheet(BuildContext context, int photoIndex) {
     showModalBottomSheet(
       context: context,
@@ -592,98 +418,288 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     );
   }
 
-  // ฟังก์ชัน _showProductDetails (เหมือนเดิม)
-  void _showProductDetails(BuildContext context, Order? order) {
-    if (order == null) return;
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          title: const Text('รายละเอียดสินค้า',
-              style: TextStyle(fontWeight: FontWeight.bold)),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('คำอธิบาย: ${order.productDescription}'),
-                const SizedBox(height: 10),
-                if (order.productImageUrl != null &&
-                    order.productImageUrl!.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('รูปภาพสินค้า (จากผู้ส่ง):'),
-                      const SizedBox(height: 5),
-                      Image.network(
-                        order.productImageUrl!,
-                        width: 150,
-                        height: 150,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Text('ไม่สามารถโหลดรูปภาพได้'),
-                      ),
-                    ],
-                  ),
-                if (order.productImageUrl == null ||
-                    order.productImageUrl!.isEmpty)
-                  const Text('ไม่มีรูปภาพสินค้าแนบมา'),
-                
-                // แสดงรูปที่ไรเดอร์อัปโหลด (ถ้ามี)
-                const Divider(height: 20),
-                if (order.pickupImageUrl != null && order.pickupImageUrl!.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('รูปภาพตอนรับสินค้า (ไรเดอร์):'),
-                      const SizedBox(height: 5),
-                      Image.network(
-                        order.pickupImageUrl!,
-                        width: 150,
-                        height: 150,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Text('ไม่สามารถโหลดรูปภาพได้'),
-                      ),
-                    ],
-                  ),
-                if (order.deliveryImageUrl != null && order.deliveryImageUrl!.isNotEmpty)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('รูปภาพตอนส่งสินค้า (ไรเดอร์):'),
-                      const SizedBox(height: 5),
-                      Image.network(
-                        order.deliveryImageUrl!,
-                        width: 150,
-                        height: 150,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
-                            const Text('ไม่สามารถโหลดรูปภาพได้'),
-                      ),
-                    ],
-                  ),
+  // [MODIFIED FUNCTION] ฟังก์ชันยืนยันการจัดส่ง (แก้ไขให้กดยืนยัน 2 ขั้นตอน)
+  Future<void> _confirmDelivery(Order order) async {
+    // 1. ตรวจสอบว่ารูปภาพครบ 2 รูปหรือไม่
+    final bool hasAllPhotos =
+        RiderImageCache.deliveryImage != null &&
+        RiderImageCache.successImage != null;
 
-              ],
+    // 2. ตรวจสอบเงื่อนไขการสิ้นสุดงาน (ต้องมีรูปภาพครบ AND สถานะเป็น 'delivered' แล้ว)
+    final bool isReadyToComplete = hasAllPhotos && order.status == 'delivered';
+
+    // ----------------------------------------------------
+    // กรณีที่ 1: รูปภาพครบ แต่สถานะยังไม่เป็น 'delivered' (กดยืนยันครั้งที่ 1)
+    // ----------------------------------------------------
+    if (hasAllPhotos && order.status != 'delivered') {
+      // อัปเดตสถานะเป็น 'delivered' (แต่ยังไม่ลบงานและยังไม่กลับหน้าหลัก)
+      await _updateOrderStatus(order.orderId, 'delivered');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            // ข้อความแจ้งให้กดปุ่มอีกครั้ง (ปุ่มจะเปลี่ยนเป็น 'สิ้นสุดงานจัดส่ง' โดยอัตโนมัติ)
+            content: Text(
+              'รูปภาพครบ! กรุณากดปุ่ม "สิ้นสุดงานจัดส่ง" อีกครั้งเพื่อจบงาน',
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+      return; // หยุดการทำงาน ยังไม่สิ้นสุดงาน
+    }
+
+    // ----------------------------------------------------
+    // กรณีที่ 2: เงื่อนไขการจบงานครบถ้วน (isReadyToComplete == true) (กดยืนยันครั้งที่ 2)
+    // ----------------------------------------------------
+    if (isReadyToComplete) {
+      try {
+        // 1. **ลบเอกสาร Order ออกจาก Firestore** (ถือว่าจัดส่งสำเร็จและเสร็จสิ้นงาน)
+        await FirebaseFirestore.instance
+            .collection('orders')
+            .doc(order.orderId)
+            .delete();
+
+        // [NEW] หยุดการติดตามตำแหน่งเมื่อจบงาน
+        _stopLocationTracking();
+
+        // 2. **ล้าง Cache รูปภาพ**
+        RiderImageCache.clearCache();
+
+        // 3. แจ้งเตือน (Snackbar)
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('สิ้นสุดงานจัดส่งสำเร็จ! ✅ ID: ${order.orderId}'),
+              backgroundColor: const Color(0xFF4CAF50),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+
+          // 4. **นำทางกลับไปหน้าหลัก (หน้ารับงาน)**
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const DeliveryHomePage(),
+            ), // ไปหน้า Home
+            (route) => false,
+          );
+        }
+      } catch (e) {
+        print("Error completing delivery: $e");
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('เกิดข้อผิดพลาดในการสิ้นสุดการจัดส่ง'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+      return;
+    }
+
+    // ----------------------------------------------------
+    // กรณีที่ 3: รูปยังไม่ครบ (แสดงข้อความเตือน)
+    // ----------------------------------------------------
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('กรุณาอัปโหลดรูปภาพสถานะให้ครบก่อนยืนยัน'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 4),
+        ),
+      );
+    }
+  }
+
+  // [NEW] ฟังก์ชันสำหรับซูมแผนที่ไปยังขอบเขตของจุดรับและจุดส่ง
+  void _fitMapToBounds(Order order) {
+    List<LatLng> points = [];
+
+    // 1. กำหนดพิกัดปลายทาง
+    if (order.destinationLatitude != null &&
+        order.destinationLongitude != null) {
+      points.add(
+        LatLng(order.destinationLatitude!, order.destinationLongitude!),
+      );
+    }
+
+    // 2. กำหนดพิกัดต้นทาง (ผู้ส่ง)
+    if (order.pickupLatitude != null && order.pickupLongitude != null) {
+      points.add(LatLng(order.pickupLatitude!, order.pickupLongitude!));
+    }
+
+    // 3. (Optional) เพิ่มตำแหน่งล่าสุดของไรเดอร์ (จาก DB)
+    if (order.riderLatitude != null && order.riderLongitude != null) {
+      points.add(LatLng(order.riderLatitude!, order.riderLongitude!));
+    }
+
+    // ถ้าไม่มีพิกัดเลย ให้ใช้ค่าเริ่มต้น
+    if (points.isEmpty) {
+      points.add(
+        const LatLng(16.2082, 103.2798),
+      ); // ค่าเริ่มต้น (เช่น มหาสารคาม)
+    }
+
+    // 4. คำนวณขอบเขตแผนที่
+    final LatLngBounds bounds = LatLngBounds.fromPoints(points);
+
+    // 5. รอให้ Map พร้อมใช้งาน แล้วจึงสั่ง fitCamera
+    // ใช้ addPostFrameCallback เพื่อให้แน่ใจว่า Widget สร้างเสร็จแล้ว
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _mapController.fitCamera(
+        CameraFit.bounds(
+          bounds: bounds,
+          padding: const EdgeInsets.all(50.0), // เพิ่ม padding รอบๆ marker
+        ),
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const Color primaryColor = DeliveryStatusScreen.primaryColor;
+    const Color secondaryColor = DeliveryStatusScreen.secondaryColor;
+
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [secondaryColor, primaryColor],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
             ),
           ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('ปิด',
-                  style: TextStyle(color: DeliveryStatusScreen.primaryColor)),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
+        ),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        toolbarHeight: 0,
+      ),
+      body: StreamBuilder<Order?>(
+        stream: _fetchOngoingOrderStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: primaryColor),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Text("ข้อผิดพลาดในการโหลดงาน: ${snapshot.error}"),
+            );
+          }
+
+          // [CORE LOGIC] ตรวจสอบงานที่กำลังดำเนินการ (จาก Stream หรือ Constructor)
+          final Order? currentOrder = snapshot.data ?? widget.acceptedOrder;
+
+          // [ADDED] อัปเดตตัวแปร State ด้วย Order ล่าสุดจาก Stream
+          _currentOrderFromStream = currentOrder;
+
+          if (currentOrder == null) {
+            // [STATE 1: ไม่ได้กดรับงาน / งานเสร็จแล้ว]
+
+            // [NEW] ถ้าไม่มีงาน ให้หยุดการติดตามตำแหน่ง
+            if (_isLocationServiceEnabled) {
+              _stopLocationTracking();
+            }
+            _mapInitialized = false; // รีเซ็ตสถานะแผนที่
+
+            // ************************************************************
+            // [การแก้ไข: ล้าง Static Cache เมื่อไม่มีงานในระบบ]
+            // ************************************************************
+            if (RiderImageCache.deliveryImage != null ||
+                RiderImageCache.successImage != null) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) {
+                  setState(() {
+                    RiderImageCache.clearCache(); // ล้างรูปภาพเก่าทันที
+                  });
+                }
+              });
+            }
+            // ************************************************************
+
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(30.0),
+                child: Text(
+                  "ไม่พบงานที่กำลังจัดส่ง กรุณากลับไปหน้าหลักเพื่อรับงาน",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ),
+            );
+          }
+
+          // [NEW] ถ้ามีงาน แต่ยังไม่เริ่มติดตาม ให้เริ่ม
+          if (!_isLocationServiceEnabled) {
+            _initializeLocationTracking();
+          }
+
+          // [NEW] ซูมแผนที่ไปยังจุดหมาย 1 ครั้งเมื่อโหลด Order สำเร็จ
+          if (!_mapInitialized) {
+            _fitMapToBounds(currentOrder);
+            _mapInitialized = true;
+          }
+
+          // [STATE 2: งานถูกรับแล้ว (currentOrder != null)]
+          return SingleChildScrollView(
+            child: Column(
+              children: <Widget>[
+                _buildTopGradientAndBanner(context, currentOrder),
+                // [MODIFIED] เรียกใช้ _buildMapSection เพื่อแสดงแผนที่ Flutter Map
+                _buildMapSection(currentOrder),
+                _buildPhotoSections(),
+                const SizedBox(height: 15),
+                _buildConfirmationButton(currentOrder),
+                const SizedBox(height: 20),
+                _buildProductInfoButton(),
+                const SizedBox(height: 40),
+              ],
             ),
-          ],
-        );
-      },
+          );
+        },
+      ),
+
+      // **********************************************
+      // ********* การเรียกใช้งาน Bottom Bar **********
+      // **********************************************
+      bottomNavigationBar: StatusBottomBar(
+        currentIndex: 1,
+        onItemSelected: (index) {
+          if (index == 0) {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const DeliveryHomePage()),
+              (route) => false,
+            );
+          } else if (index == 2) {
+            // Logout Logic
+            FirebaseAuth.instance.signOut(); // เพิ่มการ Sign Out
+            // [NEW] ล้าง Cache รูปภาพเมื่อ Logout
+            RiderImageCache.clearCache();
+            // [NEW] หยุดการติดตามตำแหน่งเมื่อ Logout
+            _stopLocationTracking();
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LoginPage()),
+              (route) => false,
+            );
+          }
+        },
+      ),
     );
   }
 
   // ----------------------------------------------------------
-  // MARK: - Widget Builders (ส่วนเดิม)
+  // ส่วนฟังก์ชันย่อย (Widget Builders)
   // ----------------------------------------------------------
-  
+
   Widget _buildTopGradientAndBanner(BuildContext context, Order? currentOrder) {
     const Color secondaryColor = Color(0xFF004D40);
     return Container(
@@ -699,7 +715,11 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
         children: <Widget>[
           Padding(
             padding: const EdgeInsets.only(
-                top: 20.0, bottom: 20.0, left: 20.0, right: 20.0),
+              top: 20.0,
+              bottom: 20.0,
+              left: 20.0,
+              right: 20.0,
+            ),
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 20),
               decoration: BoxDecoration(
@@ -717,6 +737,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
               ),
             ),
           ),
+          // [MODIFIED] เรียกใช้ฟังก์ชันที่ถูกแก้ไข
           _buildStepIndicators(currentOrder),
           const SizedBox(height: 40),
         ],
@@ -724,21 +745,31 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     );
   }
 
+  // ******************************************************
+  // [MODIFIED] ฟังก์ชัน _buildStepIndicators (เปลี่ยนข้อความสถานะ)
+  // ******************************************************
   Widget _buildStepIndicators(Order? currentOrder) {
     final String status = currentOrder?.status ?? 'pending';
-    
-    // Logic สถานะ 4 ขั้นตอน:
-    final isPending = status == 'pending';
-    final isAcceptedOrEnroute = status == 'accepted' || status == 'en_route';
-    final isPickedUpOrInTransit = status == 'picked_up' || status == 'inTransit';
-    final isCompletedOrDelivered = status == 'completed' || status == 'delivered';
 
-    // การกำหนด Active State สำหรับ 4 ขั้นตอนใหม่
-    final isStep1Active = isPending; 
-    final isStep2Active = isAcceptedOrEnroute || isPickedUpOrInTransit || isCompletedOrDelivered;
-    final isStep3Active = isPickedUpOrInTransit || isCompletedOrDelivered;
-    final isStep4Active = isCompletedOrDelivered;
+    // ตรรกะสถานะ:
+    final isAccepted = status == 'accepted';
+    final isPickedUp = status == 'pickedUp';
+    final isInTransit = status == 'inTransit'; // กำลังเดินทาง
+    final isCompleted = status == 'delivered'; // จัดส่งสำเร็จ
 
+    // สถานะ 1: ไรเดอร์รับสินค้าแล้ว (Active เมื่อเป็น accepted, pickedUp, inTransit, delivered)
+    final isFirstStepActive =
+        isAccepted || isPickedUp || isInTransit || isCompleted;
+    // สถานะ 2: กำลังเดินทาง (Active เมื่อเป็น inTransit หรือ delivered)
+    final isSecondStepActive = isInTransit || isCompleted;
+    // สถานะ 3: จัดส่งสินค้าสำเร็จ (Active เมื่อเป็น delivered)
+    final isThirdStepActive = isCompleted;
+
+    // เส้นเชื่อมต่อ
+    final isLine1Active =
+        isSecondStepActive; // เชื่อมต่อ 1 -> 2 (Active เมื่อเข้าสู่ inTransit)
+    final isLine2Active =
+        isCompleted; // เชื่อมต่อ 2 -> 3 (Active เมื่อเสร็จสิ้น)
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10.0),
@@ -746,52 +777,53 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          // 1. รอไรเดอร์รับสินค้า (Pending)
+          // 1. ไรเดอร์รับสินค้าแล้ว
           _buildStepItem(
-            icon: Icons.access_time_filled,
-            label: 'รอไรเดอร์รับสินค้า',
-            isActive: isStep1Active,
-            color: isStep1Active ? Colors.white : Colors.white.withOpacity(0.8),
+            icon: Icons.check_circle_outline,
+            label: 'ไรเดอร์รับสินค้าแล้ว',
+            isActive: isFirstStepActive,
+            color: isFirstStepActive
+                ? Colors.white
+                : Colors.white.withOpacity(0.8),
           ),
-          // เส้นเชื่อมต่อ 1->2
-          _buildConnectorLine(isActive: isStep2Active || isStep3Active || isStep4Active),
 
-          // 2. ได้รับออเดอร์แล้ว (Accepted/Enroute)
-          _buildStepItem(
-            icon: Icons.description,
-            label: 'ได้รับออเดอร์แล้ว',
-            isActive: isStep2Active,
-            color: isStep2Active ? Colors.white : Colors.white.withOpacity(0.8),
-          ),
-          // เส้นเชื่อมต่อ 2->3
-          _buildConnectorLine(isActive: isStep3Active || isStep4Active),
+          // [NEW] เส้นเชื่อมต่อ 1
+          _buildConnectorLine(isActive: isLine1Active),
 
-          // 3. กำลังไปส่งของ (PickedUp/InTransit)
+          // 2. กำลังเดินทาง (เปลี่ยนข้อความตามรูปภาพล่าสุด)
           _buildStepItem(
             icon: Icons.motorcycle,
-            label: 'กำลังไปส่งของ',
-            isActive: isStep3Active,
-            color: isStep3Active ? Colors.white : Colors.white.withOpacity(0.8),
+            label: 'กำลังเดินทาง', // <--- แก้ไขข้อความ
+            isActive: isSecondStepActive,
+            color: isSecondStepActive
+                ? Colors.white
+                : Colors.white.withOpacity(0.8),
           ),
-          // เส้นเชื่อมต่อ 3->4
-          _buildConnectorLine(isActive: isStep4Active),
 
-          // 4. จัดส่งสินค้าสำเร็จ (Completed/Delivered)
+          // [NEW] เส้นเชื่อมต่อ 2
+          _buildConnectorLine(isActive: isLine2Active),
+
+          // 3. จัดส่งสินค้าสำเร็จ
           _buildStepItem(
-            icon: Icons.check_circle,
-            label: 'จัดส่งสำเร็จ',
-            isActive: isStep4Active,
-            color: isStep4Active ? Colors.white : Colors.white.withOpacity(0.8),
+            icon: Icons.check,
+            label: 'จัดส่งสินค้าสำเร็จ',
+            isActive: isThirdStepActive,
+            color: isThirdStepActive
+                ? Colors.white
+                : Colors.white.withOpacity(0.8),
           ),
         ],
       ),
     );
   }
 
+  // [NEW] ฟังก์ชันสำหรับสร้างเส้นเชื่อมต่อระหว่างสถานะ
   Widget _buildConnectorLine({required bool isActive}) {
     return Expanded(
       child: Padding(
-        padding: const EdgeInsets.only(top: 15.0),
+        padding: const EdgeInsets.only(
+          top: 15.0,
+        ), // จัดให้อยู่ในแนวเดียวกับไอคอน
         child: Container(
           height: 3.0,
           color: isActive ? Colors.white : Colors.white.withOpacity(0.4),
@@ -799,6 +831,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
       ),
     );
   }
+  // ******************************************************
 
   Widget _buildStepItem({
     required IconData icon,
@@ -822,7 +855,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
         ),
         const SizedBox(height: 4),
         SizedBox(
-          width: 80, 
+          width: 80, // กำหนดความกว้างคงที่เพื่อป้องกันข้อความชนกัน
           child: Text(
             label,
             textAlign: TextAlign.center,
@@ -837,86 +870,145 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     );
   }
 
+  // --------------------------------------------------------------------------
+  // [MODIFIED] ฟังก์ชัน _buildMapSection (เพิ่ม Marker ไรเดอร์และ MapController)
+  // --------------------------------------------------------------------------
   Widget _buildMapSection(Order order) {
+    // 1. กำหนดพิกัดปลายทาง
     final LatLng destinationLatLng =
-        (order.destinationLatitude != null && order.destinationLongitude != null)
-            ? LatLng(order.destinationLatitude!, order.destinationLongitude!)
-            : const LatLng(16.2082, 103.2798); 
+        (order.destinationLatitude != null &&
+            order.destinationLongitude != null)
+        ? LatLng(order.destinationLatitude!, order.destinationLongitude!)
+        : const LatLng(16.2082, 103.2798); // ค่าเริ่มต้น
+
+    // 2. กำหนดพิกัดต้นทาง (ผู้ส่ง)
     final LatLng pickupLatLng =
         (order.pickupLatitude != null && order.pickupLongitude != null)
-            ? LatLng(order.pickupLatitude!, order.pickupLongitude!)
-            : destinationLatLng; 
+        ? LatLng(order.pickupLatitude!, order.pickupLongitude!)
+        : destinationLatLng; // ใช้ปลายทางแทน ถ้าไม่มีพิกัดผู้ส่ง
 
-    final LatLngBounds bounds =
-        LatLngBounds.fromPoints([destinationLatLng, pickupLatLng]);
-
+    // 3. กำหนด Marker สำหรับปลายทาง, ต้นทาง
     final List<Marker> markers = [
+      // Marker ปลายทาง (ผู้รับ - สีแดง)
       Marker(
         point: destinationLatLng,
         width: 80,
         height: 80,
-        child: const Icon(
-          Icons.location_pin,
-          color: Colors.red, 
-          size: 40,
+        child: const Column(
+          children: [
+            Icon(Icons.location_pin, color: Colors.red, size: 40),
+            Text(
+              "ผู้รับ",
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+            ),
+          ],
         ),
       ),
+      // Marker ต้นทาง (ผู้ส่ง - สีเขียว)
       Marker(
         point: pickupLatLng,
         width: 80,
         height: 80,
-        child: const Icon(
-          Icons.location_on,
-          color: Colors.green,
-          size: 40,
+        child: const Column(
+          children: [
+            Icon(Icons.store, color: Colors.green, size: 40),
+            Text(
+              "ผู้ส่ง",
+              style: TextStyle(
+                color: Colors.green,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
       ),
     ];
+
+    // [NEW] 4. เพิ่ม Marker ของไรเดอร์ (ถ้ามีตำแหน่ง GPS สด)
+    if (_currentRiderLocation != null) {
+      markers.add(
+        Marker(
+          point: _currentRiderLocation!,
+          width: 80,
+          height: 80,
+          child: const Icon(
+            Icons.motorcycle,
+            color: Colors.blueAccent, // สีน้ำเงินสำหรับไรเดอร์
+            size: 35,
+            shadows: [Shadow(color: Colors.black, blurRadius: 5)],
+          ),
+        ),
+      );
+    }
+    // [NEW] 5. (ทางเลือก) แสดงตำแหน่งล่าสุดของไรเดอร์จาก DB ถ้ายังไม่มี GPS สด
+    else if (order.riderLatitude != null && order.riderLongitude != null) {
+      markers.add(
+        Marker(
+          point: LatLng(order.riderLatitude!, order.riderLongitude!),
+          width: 80,
+          height: 80,
+          child: Icon(
+            Icons.motorcycle,
+            color: Colors.blueAccent.withOpacity(0.5), // สีจางลง
+            size: 35,
+          ),
+        ),
+      );
+    }
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20.0, 0.0, 20.0, 20.0),
       child: Column(
         children: [
+          // 1. Map Widget (Flutter Map)
           Card(
             elevation: 4,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
             child: SizedBox(
               height: 200,
               width: double.infinity,
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(15),
                 child: FlutterMap(
+                  // [MODIFIED] ใช้ MapController
+                  mapController: _mapController,
                   options: MapOptions(
-                    initialCameraFit: CameraFit.bounds(
-                      bounds: bounds,
-                      padding:
-                          const EdgeInsets.all(50.0), 
-                    ),
+                    // [MODIFIED] กำหนดค่าเริ่มต้น (จะถูก override โดย _fitMapToBounds)
+                    initialCenter: destinationLatLng,
+                    initialZoom: 14.0,
                     interactionOptions: const InteractionOptions(
                       flags: InteractiveFlag.all,
                     ),
                   ),
+                  // Layers ของแผนที่
                   children: [
+                    // Tile Layer (OpenStreetMap Standard)
                     TileLayer(
-                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.example.ez_deliver_tracksure', 
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      // TODO: [สำคัญ] ต้องเปลี่ยน com.example.app เป็นชื่อแพ็กเกจจริงของคุณ
+                      userAgentPackageName: 'com.example.ez_deliver_tracksure',
                     ),
-                    MarkerLayer(
-                      markers: markers,
-                    ),
+
+                    // [MODIFIED] Marker Layer (แสดง Markers ทั้งหมด)
+                    MarkerLayer(markers: markers),
                   ],
                 ),
               ),
             ),
           ),
           const SizedBox(height: 15),
+          // 2. Address Details Card
           _buildAddressDetailCard(order),
         ],
       ),
     );
   }
+  // --------------------------------------------------------------------------
 
+  // [NEW] ฟังก์ชันสำหรับสร้าง Card แสดงรายละเอียดที่อยู่ผู้ส่งและผู้รับ
   Widget _buildAddressDetailCard(Order order) {
     return Card(
       elevation: 4,
@@ -926,20 +1018,24 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
+            // ส่วนผู้ส่ง
             _buildDetailRow(
-              icon: Icons.location_pin,
+              icon: Icons.storefront,
               title: 'ผู้ส่ง: ${order.customerName}',
               address: order.pickupLocation,
-              phone: 'เบอร์โทร: N/A', 
-              iconColor: Colors.green, 
+              // ใช้ 'N/A' ตามภาพตัวอย่าง (สมมติว่าไม่มีเบอร์โทรผู้ส่งใน Model)
+              phone: 'เบอร์โทร: N/A', // หากมีข้อมูลเบอร์ผู้ส่ง ให้แก้ตรงนี้
+              iconColor: Colors.green, // สีเขียว (Pickup)
             ),
             const Divider(height: 25, thickness: 1),
+            // ส่วนผู้รับ
             _buildDetailRow(
-              icon: Icons.location_pin,
+              icon: Icons.person_pin_circle,
               title: 'ผู้รับ: ${order.receiverName}',
               address: order.destination,
+              // ดึงเบอร์โทรผู้รับจาก Model
               phone: 'เบอร์โทร: ${order.receiverPhone}',
-              iconColor: Colors.red,
+              iconColor: Colors.red, // สีแดง (Destination)
             ),
           ],
         ),
@@ -947,6 +1043,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     );
   }
 
+  // [NEW] ฟังก์ชันสำหรับแสดง Row รายละเอียดที่อยู่แต่ละรายการ
   Widget _buildDetailRow({
     required IconData icon,
     required String title,
@@ -957,16 +1054,14 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Icon(
-          icon,
-          color: iconColor,
-          size: 24,
-        ),
+        // Icon
+        Icon(icon, color: iconColor, size: 24),
         const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
+              // ชื่อผู้ส่ง/ผู้รับ
               Text(
                 title,
                 style: const TextStyle(
@@ -976,6 +1071,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
                 ),
               ),
               const SizedBox(height: 4),
+              // ที่อยู่
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -984,25 +1080,20 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
                   Expanded(
                     child: Text(
                       address,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey,
-                      ),
+                      style: const TextStyle(fontSize: 13, color: Colors.grey),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
+              // เบอร์โทร
               Row(
                 children: [
                   const Icon(Icons.phone, size: 16, color: Colors.grey),
                   const SizedBox(width: 5),
                   Text(
                     phone,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey,
-                    ),
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                 ],
               ),
@@ -1019,23 +1110,15 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: <Widget>[
-          _buildPhotoCard(
-            label: 'ฉันรับสินค้าแล้ว',
-            photoIndex: 0,
-          ),
-          _buildPhotoCard(
-            label: 'ยืนยันการจัดส่งสินค้า',
-            photoIndex: 1,
-          ),
+          _buildPhotoCard(label: 'ฉันรับสินค้าแล้ว', photoIndex: 0),
+          _buildPhotoCard(label: 'ยืนยันการจัดส่งสินค้า', photoIndex: 1),
         ],
       ),
     );
   }
 
-  Widget _buildPhotoCard({
-    required String label,
-    required int photoIndex,
-  }) {
+  Widget _buildPhotoCard({required String label, required int photoIndex}) {
+    // [MODIFIED] ดึงรูปภาพจาก Static Cache
     final File? imageFile = photoIndex == 0
         ? RiderImageCache.deliveryImage
         : RiderImageCache.successImage;
@@ -1045,41 +1128,42 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 5.0),
         child: Column(
           children: [
-            GestureDetector(
-              onTap: () => _showImageSourceActionSheet(context, photoIndex),
+            // [MODIFIED] แก้ไขการแสดงผลรูปภาพ
+            InkWell(
+              onTap: () {
+                _showImageSourceActionSheet(context, photoIndex);
+              },
               child: Container(
                 height: 100,
+                width: double.infinity,
                 decoration: BoxDecoration(
                   color: const Color(0xFFF5F5F5),
                   borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.grey[300]!),
+                  // [MODIFIED] แสดงรูปภาพที่เลือก
                   image: imageFile != null
                       ? DecorationImage(
                           image: FileImage(imageFile),
                           fit: BoxFit.cover,
                         )
-                      : null, 
+                      : null,
                 ),
                 child: imageFile == null
                     ? Center(
-                        // แสดง Loading หรือ Icon
-                        child: _isUploadingPhoto 
-                            ? const CircularProgressIndicator(
-                                color: DeliveryStatusScreen.primaryColor,
-                              )
-                            : Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: const BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(color: Colors.black12, blurRadius: 4)
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.camera_alt_outlined,
-                                  color: Color(0xFF4CAF50),
-                                ),
-                              ),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(color: Colors.black12, blurRadius: 4),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.camera_alt_outlined,
+                            color: Color(0xFF4CAF50),
+                          ),
+                        ),
                       )
                     : null,
               ),
@@ -1087,11 +1171,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
             const SizedBox(height: 8),
             Text(
               label,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black54,
-              ),
+              style: const TextStyle(fontSize: 14, color: Colors.black54),
             ),
           ],
         ),
@@ -1099,13 +1179,17 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     );
   }
 
+  // รับ Order object เพื่อใช้ในฟังก์ชัน _confirmDelivery
   Widget _buildConfirmationButton(Order order) {
-    final isReadyToComplete = order.status == 'delivered' &&
+    // [ADDED] กำหนดข้อความปุ่มตามสถานะของงานและรูปภาพใน Cache
+    final isReadyToComplete =
+        order.status == 'delivered' &&
         RiderImageCache.deliveryImage != null &&
         RiderImageCache.successImage != null;
 
-    final String buttonText =
-        isReadyToComplete ? 'สิ้นสุดงานจัดส่ง' : 'ยืนยันการจัดส่งสินค้า';
+    final String buttonText = isReadyToComplete
+        ? 'สิ้นสุดงานจัดส่ง'
+        : 'ยืนยันการจัดส่งสินค้า';
     final Color buttonColor = isReadyToComplete
         ? DeliveryStatusScreen.primaryColor
         : const Color(0xFF66BB6A);
@@ -1117,9 +1201,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
       style: ElevatedButton.styleFrom(
         backgroundColor: buttonColor,
         padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
         elevation: 5,
       ),
       child: Text(
@@ -1156,6 +1238,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
         ),
         child: TextButton(
           onPressed: () {
+            // โชว์ข้อมูลสินค้า
             _showProductDetails(context, _currentOrderFromStream);
           },
           style: TextButton.styleFrom(
@@ -1177,112 +1260,62 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     );
   }
 
-  // ----------------------------------------------------------
-  // MARK: - Main Build Method (ส่วนเดิม)
-  // ----------------------------------------------------------
-
-  @override
-  Widget build(BuildContext context) {
-    const Color primaryColor = DeliveryStatusScreen.primaryColor;
-    const Color secondaryColor = DeliveryStatusScreen.secondaryColor;
-
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [secondaryColor, primaryColor],
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-            ),
+  // [NEW] ฟังก์ชันสำหรับแสดงข้อมูลสินค้า
+  void _showProductDetails(BuildContext context, Order? order) {
+    if (order == null) return;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        toolbarHeight: 0,
-      ),
-
-      body: StreamBuilder<Order?>(
-        stream: _fetchOngoingOrderStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator(color: primaryColor));
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-                child: Text("ข้อผิดพลาดในการโหลดงาน: ${snapshot.error}"));
-          }
-
-          final Order? currentOrder = snapshot.data ?? widget.acceptedOrder;
-          _currentOrderFromStream = currentOrder;
-
-          if (currentOrder == null) {
-            // [STATE 1: ไม่ได้กดรับงาน / งานเสร็จแล้ว]
-            if (RiderImageCache.deliveryImage != null ||
-                RiderImageCache.successImage != null) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  setState(() {
-                    RiderImageCache.clearCache(); 
-                  });
-                }
-              });
-            }
-
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(30.0),
-                child: Text(
-                  "ไม่พบงานที่กำลังจัดส่ง กรุณากลับไปหน้าหลักเพื่อรับงาน",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
-                ),
-              ),
-            );
-          }
-
-          // [STATE 2: งานถูกรับแล้ว (currentOrder != null)]
-          return SingleChildScrollView(
-            child: Column(
+          title: const Text(
+            'รายละเอียดสินค้า',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: SingleChildScrollView(
+            child: ListBody(
               children: <Widget>[
-                _buildTopGradientAndBanner(context, currentOrder),
-                _buildMapSection(currentOrder),
-                _buildPhotoSections(),
-                const SizedBox(height: 15),
-                _buildConfirmationButton(currentOrder),
-                const SizedBox(height: 20),
-                _buildProductInfoButton(),
-                const SizedBox(height: 40),
+                Text('คำอธิบาย: ${order.productDescription}'),
+                const SizedBox(height: 10),
+                if (order.productImageUrl != null &&
+                    order.productImageUrl!.isNotEmpty)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('รูปภาพสินค้า:'),
+                      const SizedBox(height: 5),
+                      // ใช้ NetworkImage สำหรับรูปภาพจาก URL
+                      Image.network(
+                        order.productImageUrl!,
+                        width: 150,
+                        height: 150,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Text('ไม่สามารถโหลดรูปภาพได้'),
+                      ),
+                    ],
+                  ),
+                if (order.productImageUrl == null ||
+                    order.productImageUrl!.isEmpty)
+                  const Text('ไม่มีรูปภาพสินค้าแนบมา'),
               ],
             ),
-          );
-        },
-      ), 
-
-      bottomNavigationBar: StatusBottomBar(
-        currentIndex: 1,
-        onItemSelected: (index) {
-          if (index == 0) {
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const DeliveryHomePage()),
-              (route) => false,
-            );
-          } else if (index == 2) {
-            FirebaseAuth.instance.signOut(); 
-            RiderImageCache.clearCache();
-            _positionStreamSubscription?.cancel(); // **สำคัญ: หยุดส่งตำแหน่งเมื่อ Log out**
-            Navigator.pushAndRemoveUntil(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginPage()),
-              (route) => false,
-            );
-          }
-        },
-      ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text(
+                'ปิด',
+                style: TextStyle(color: DeliveryStatusScreen.primaryColor),
+              ),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
