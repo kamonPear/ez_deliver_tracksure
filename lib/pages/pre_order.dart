@@ -15,7 +15,6 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 // 📍 --- และเพิ่มบรรทัดนี้ --- 📍
 
-
 class PreOrderScreen extends StatefulWidget {
   const PreOrderScreen({Key? key}) : super(key: key);
 
@@ -25,7 +24,7 @@ class PreOrderScreen extends StatefulWidget {
 
 class _PreOrderScreenState extends State<PreOrderScreen> {
   // --- State Variables ---
-  int _selectedIndex = 0; // <--- ถูกต้องแล้ว
+  int _selectedIndex = 0;
   bool _isLoading = true;
   bool _isSubmitting = false;
   bool _isSearching = false;
@@ -79,7 +78,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
   // --- Functions ---
 
   // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-  //         <--- จุดแก้ไขที่ 1
+  //         <--- จุดแก้ไขที่ 1
   // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
   Future<void> _fetchUserData() async {
     User? user = FirebaseAuth.instance.currentUser;
@@ -116,8 +115,10 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                 // ▼▼▼▼▼▼ [ CODE ที่แก้ไข ] ▼▼▼▼▼▼
                 // ดึงค่า latitude และ longitude (Number) โดยตรง
                 // ใช้วิธี (as num?)?.toDouble() เพื่อความปลอดภัย
-                final double? lat = (_userData!['latitude'] as num?)?.toDouble();
-                final double? lng = (_userData!['longitude'] as num?)?.toDouble();
+                final double? lat = (_userData!['latitude'] as num?)
+                    ?.toDouble();
+                final double? lng = (_userData!['longitude'] as num?)
+                    ?.toDouble();
                 // ▲▲▲▲▲▲ [ CODE ที่แก้ไข ] ▲▲▲▲▲▲
 
                 tempAddresses.insert(0, {
@@ -156,8 +157,9 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
     }
 
     try {
-      final querySnapshot =
-          await FirebaseFirestore.instance.collection('customers').get();
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('customers')
+          .get();
 
       final user = FirebaseAuth.instance.currentUser;
       final List<Map<String, dynamic>> customers = [];
@@ -190,42 +192,35 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
   }
   // ------------------------------------------
 
-   // ▼▼▼▼▼▼ [ CODE ที่แก้ไข ] ▼▼▼▼▼▼
-   // 🚀🚀🚀 THE FIX IS HERE 🚀🚀🚀
   void _onItemTapped(int index) {
-    // if (_selectedIndex == index) return; // <--- ✅✅✅ ลบ หรือ คอมเมนต์ บรรทัดนี้ออก
-    
-    // --- ไม่ต้อง setState ที่นี่แล้ว ---
-    // setState(() {
-    //   _selectedIndex = index;
-    // });
-    // ---------------------------------
+    // If the tapped item is the current one, do nothing.
+    if (_selectedIndex == index) return;
 
+    // We use Navigator.push so that the back button works as expected.
+    // The state of _selectedIndex is only changed for the home button.
     switch (index) {
       case 0:
-        // ถ้าอยู่ที่หน้าอื่น แล้วกด Home ให้แทนที่ด้วย HomeScreen
-        Navigator.pushReplacement( // <--- เปลี่ยน
+        Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const HomeScreen()),
         );
         break;
       case 1:
-        // ไปหน้า Products โดยการแทนที่
-        Navigator.pushReplacement( // <--- เปลี่ยน
+        // Navigate to the Products (History) page
+        Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const Products()), // หรือ OrderListPage() ถ้าจะใช้หน้านั้น
+          MaterialPageRoute(builder: (context) => const Products()),
         );
         break;
       case 2:
-        // ไปหน้า EditPro โดยการแทนที่
-        Navigator.pushReplacement( // <--- เปลี่ยน
+        // Navigate to the EditPro (Others) page
+        Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const EditPro()),
         );
         break;
     }
   }
-  // ▲▲▲▲▲▲ [ CODE ที่แก้ไข ] ▲▲▲▲▲▲
 
   Future<void> _pickImage(ImageSource source) async {
     try {
@@ -371,7 +366,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
   }
 
   // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-  //         <--- จุดแก้ไขที่ 2
+  //         <--- จุดแก้ไขที่ 2
   // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
   Future<void> _submitAllOrders() async {
     if (_addedItems.isEmpty) {
@@ -506,7 +501,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
   }
 
   // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-  //         <--- 📍 จุดแก้ไขที่ 3 (แก้ไขใหม่ทั้งหมด) 📍
+  //         <--- 📍 จุดแก้ไขที่ 3 (แก้ไขใหม่ทั้งหมด) 📍
   // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
   Future<void> _showAddNewAddressDialog() async {
     // This map will hold the result from Mapgps.dart
@@ -560,7 +555,8 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                           );
 
                           // When the map screen returns a result
-                          if (result != null && result is Map<String, dynamic>) {
+                          if (result != null &&
+                              result is Map<String, dynamic>) {
                             dialogSetState(() {
                               _selectedMapData = result;
 
@@ -619,8 +615,10 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                       if (user == null) return;
 
                       // Get data from map result
-                      final LatLng latlng = _selectedMapData!['latlng'] as LatLng;
-                      final String address = _selectedMapData!['address'] as String;
+                      final LatLng latlng =
+                          _selectedMapData!['latlng'] as LatLng;
+                      final String address =
+                          _selectedMapData!['address'] as String;
 
                       // Create the new address map
                       final newAddress = {
@@ -636,8 +634,8 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                             .collection('customers')
                             .doc(user.uid)
                             .update({
-                          'addresses': FieldValue.arrayUnion([newAddress]),
-                        });
+                              'addresses': FieldValue.arrayUnion([newAddress]),
+                            });
 
                         if (mounted) {
                           // Update local state
@@ -745,46 +743,50 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                           )
                         : Expanded(
                             child: _filteredCustomers.isEmpty
-                                ? const Center(
-                                    child: Text('ไม่พบข้อมูล'),
-                                  )
+                                ? const Center(child: Text('ไม่พบข้อมูล'))
                                 : ListView.builder(
                                     shrinkWrap: true,
                                     itemCount: _filteredCustomers.length,
                                     itemBuilder: (context, index) {
-                                      final customer = _filteredCustomers[index];
+                                      final customer =
+                                          _filteredCustomers[index];
                                       return ListTile(
                                         leading: CircleAvatar(
                                           backgroundColor: Colors.grey.shade200,
-                                          backgroundImage: (customer[
-                                                          'profile_image_url'] !=
+                                          backgroundImage:
+                                              (customer['profile_image_url'] !=
                                                       null &&
-                                                  customer[
-                                                          'profile_image_url']
+                                                  customer['profile_image_url']
                                                       .isNotEmpty)
                                               ? NetworkImage(
-                                                  customer['profile_image_url'])
+                                                  customer['profile_image_url'],
+                                                )
                                               : null,
-                                          child: (customer[
-                                                          'profile_image_url'] ==
+                                          child:
+                                              (customer['profile_image_url'] ==
                                                       null ||
-                                                  customer[
-                                                          'profile_image_url']
+                                                  customer['profile_image_url']
                                                       .isEmpty)
-                                              ? const Icon(Icons.person,
-                                                  color: primaryGreen)
+                                              ? const Icon(
+                                                  Icons.person,
+                                                  color: primaryGreen,
+                                                )
                                               : null,
                                         ),
                                         title: Text(
-                                            customer['customer_name'] ?? 'N/A'),
+                                          customer['customer_name'] ?? 'N/A',
+                                        ),
                                         subtitle: Text(
-                                            customer['customer_phone'] ?? 'N/A'),
+                                          customer['customer_phone'] ?? 'N/A',
+                                        ),
                                         onTap: () {
                                           // เมื่อเลือก user
                                           setState(() {
                                             _receiverData = customer;
                                             // (Optional) อาจจะใส่เบอร์โทรในช่องค้นหาให้ด้วย
-                                            _receiverPhoneController.text = customer['customer_phone'] ?? '';
+                                            _receiverPhoneController.text =
+                                                customer['customer_phone'] ??
+                                                '';
                                           });
                                           Navigator.of(dialogContext).pop();
                                         },
@@ -845,14 +847,14 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                   backgroundColor: Colors.grey.shade200,
                   backgroundImage:
                       (userData?['profile_image_url'] != null &&
-                              userData!['profile_image_url'].isNotEmpty)
-                          ? NetworkImage(userData['profile_image_url'])
-                          : null,
+                          userData!['profile_image_url'].isNotEmpty)
+                      ? NetworkImage(userData['profile_image_url'])
+                      : null,
                   child:
                       (userData?['profile_image_url'] == null ||
-                              userData!['profile_image_url'].isEmpty)
-                          ? const Icon(Icons.person, color: primaryGreen)
-                          : null,
+                          userData!['profile_image_url'].isEmpty)
+                      ? const Icon(Icons.person, color: primaryGreen)
+                      : null,
                 ),
                 const SizedBox(width: 15),
                 Expanded(
@@ -977,7 +979,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
             ),
             onPressed: _showSelectReceiverDialog, // <-- เรียก Dialog
           ),
-        )
+        ),
         // --- 📍 ---------------- 📍 ---
       ],
     );
@@ -985,7 +987,7 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
   // ------------------------------------------
 
   // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-  //         <--- 📍 จุดแก้ไขที่ 4 (ใช้ flutter_map) 📍
+  //         <--- 📍 จุดแก้ไขที่ 4 (ใช้ flutter_map) 📍
   // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
   Widget _buildReceiverInfoCard(Map<String, dynamic>? receiverData) {
     if (receiverData == null) {
@@ -1021,10 +1023,12 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
       elevation: 3,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       clipBehavior: Clip.antiAlias, // <-- เพิ่มเพื่อให้ขอบแผนที่โค้งมนตาม Card
-      child: Column( // <-- เปลี่ยนจาก Padding เป็น Column
+      child: Column(
+        // <-- เปลี่ยนจาก Padding เป็น Column
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding( // <-- เพิ่ม Padding หุ้มส่วนข้อมูลเดิม
+          Padding(
+            // <-- เพิ่ม Padding หุ้มส่วนข้อมูลเดิม
             padding: const EdgeInsets.all(15.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1047,14 +1051,17 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
                       backgroundColor: Colors.grey.shade200,
                       backgroundImage:
                           (receiverData['profile_image_url'] != null &&
-                                  receiverData['profile_image_url'].isNotEmpty)
-                              ? NetworkImage(receiverData['profile_image_url'])
-                              : null,
+                              receiverData['profile_image_url'].isNotEmpty)
+                          ? NetworkImage(receiverData['profile_image_url'])
+                          : null,
                       child:
                           (receiverData['profile_image_url'] == null ||
-                                  receiverData['profile_image_url'].isEmpty)
-                              ? const Icon(Icons.person_pin_circle, color: primaryGreen)
-                              : null,
+                              receiverData['profile_image_url'].isEmpty)
+                          ? const Icon(
+                              Icons.person_pin_circle,
+                              color: primaryGreen,
+                            )
+                          : null,
                     ),
                     const SizedBox(width: 15),
                     Expanded(
@@ -1097,28 +1104,34 @@ class _PreOrderScreenState extends State<PreOrderScreen> {
             SizedBox(
               height: 200, // กำหนดความสูงของแผนที่
               width: double.infinity,
-              child: FlutterMap( // <-- ใช้ FlutterMap
+              child: FlutterMap(
+                // <-- ใช้ FlutterMap
                 options: MapOptions(
                   initialCenter: receiverLocation,
                   initialZoom: 16.0,
                   interactionOptions: const InteractionOptions(
-                    flags: InteractiveFlag.none, // ทำให้แผนที่เลื่อนไม่ได้ (แสดงผลอย่างเดียว)
+                    flags: InteractiveFlag
+                        .none, // ทำให้แผนที่เลื่อนไม่ได้ (แสดงผลอย่างเดียว)
                   ),
                 ),
                 children: [
-                  TileLayer( // <-- ใช้ TileLayer ของ OpenStreetMap
+                  TileLayer(
+                    // <-- ใช้ TileLayer ของ OpenStreetMap
                     urlTemplate:
                         'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                    userAgentPackageName: 'com.example.deliver_tracksure', // ใส่ package name ของคุณ
+                    userAgentPackageName:
+                        'com.example.deliver_tracksure', // ใส่ package name ของคุณ
                   ),
-                  MarkerLayer( // <-- แสดง Marker
+                  MarkerLayer(
+                    // <-- แสดง Marker
                     markers: markers,
                   ),
                 ],
               ),
             )
           else
-            const Padding( // <-- แสดงข้อความถ้าไม่มีพิกัด
+            const Padding(
+              // <-- แสดงข้อความถ้าไม่มีพิกัด
               padding: EdgeInsets.fromLTRB(15, 0, 15, 15),
               child: Text(
                 'ไม่พบข้อมูลพิกัดสำหรับแสดงบนแผนที่',

@@ -4,6 +4,8 @@ import 'package:ez_deliver_tracksure/pages/order_list_page.dart';
 import 'package:ez_deliver_tracksure/pages/pre_order.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:ez_deliver_tracksure/pages/received.dart';
+// ตรวจสอบการ Import!
 
 import 'products.dart';
 import 'top_bar.dart';
@@ -17,15 +19,24 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  // State & Data Variables
   int _selectedIndex = 0;
   bool _isLoading = true;
   Map<String, dynamic>? _userData;
+
+  // 💡 สมมติว่านี่คือ Order ID ที่ต้องการใช้เมื่อกดปุ่ม "สถานะพัสดุที่ต้องรับ"
+  // **คุณต้องเปลี่ยนเป็น orderId จริงที่ได้จากการจัดการสถานะออเดอร์ในแอปของคุณ**
+  final String _testOrderId = 'ORDER_123456';
 
   @override
   void initState() {
     super.initState();
     _fetchUserData();
   }
+
+  // ----------------------------------------------------------
+  // MARK: - Data Fetching
+  // ----------------------------------------------------------
 
   Future<void> _fetchUserData() async {
     User? user = FirebaseAuth.instance.currentUser;
@@ -35,12 +46,13 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     try {
-      // This logic checks both 'customers' and 'riders' collections
+      // 1. Check 'customers' collection
       DocumentSnapshot docSnapshot = await FirebaseFirestore.instance
           .collection('customers')
           .doc(user.uid)
           .get();
 
+      // 2. If not found, check 'riders' collection
       if (!docSnapshot.exists) {
         docSnapshot = await FirebaseFirestore.instance
             .collection('riders')
@@ -56,54 +68,59 @@ class _HomeScreenState extends State<HomeScreen> {
           });
         } else {
           setState(() => _isLoading = false);
-          print("User document not found for UID: ${user.uid}");
+          // print("User document not found for UID: ${user.uid}");
         }
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-      print("Error fetching user data: $e");
+      // print("Error fetching user data: $e");
     }
   }
 
-  // 🚀🚀🚀 THE FIX IS HERE 🚀🚀🚀
+  // ----------------------------------------------------------
+  // MARK: - Navigation Logic
+  // ----------------------------------------------------------
+
+  // Logic สำหรับการเปลี่ยนหน้าจาก BottomBar
   void _onItemTapped(int index) {
-  if (_selectedIndex == index) return;
+    if (_selectedIndex == index) return;
 
-  // --- ไม่ต้อง setState ที่นี่แล้ว ---
-  // setState(() {
-  //   _selectedIndex = index;
-  // });
-  // ---------------------------------
-
-
-  switch (index) {
-    case 0:
-      // ถ้าอยู่ที่หน้าอื่น แล้วกด Home ให้แทนที่ด้วย HomeScreen
-      Navigator.pushReplacement( // <--- เปลี่ยน
-        context,
-        MaterialPageRoute(builder: (context) => const HomeScreen()),
-      );
-      break;
-    case 1:
-      // ไปหน้า Products โดยการแทนที่
-      Navigator.pushReplacement( // <--- เปลี่ยน
-        context,
-        MaterialPageRoute(builder: (context) => const Products()), // หรือ OrderListPage() ถ้าจะใช้หน้านั้น
-      );
-      break;
-    case 2:
-      // ไปหน้า EditPro โดยการแทนที่
-      Navigator.pushReplacement( // <--- เปลี่ยน
-        context,
-        MaterialPageRoute(builder: (context) => const EditPro()),
-      );
-      break;
+    // เนื่องจาก HomeScreen เป็นหน้าแรกและหน้าหลักของ Index 0
+    // การเปลี่ยนหน้าต้องใช้ pushReplacement เพื่อไม่ให้ซ้อนกัน
+    switch (index) {
+      case 0:
+        // ถ้าอยู่ที่หน้าอื่น แล้วกด Home ให้แทนที่ด้วย HomeScreen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomeScreen()),
+        );
+        break;
+      case 1:
+        // ไปหน้า Products (หรือ OrderListPage) โดยการแทนที่
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const Products(),
+          ), // หรือ OrderListPage()
+        );
+        break;
+      case 2:
+        // ไปหน้า EditPro โดยการแทนที่
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const EditPro()),
+        );
+        break;
+    }
   }
-}
 
-  // ... (The rest of your build methods like _buildWideMenuButton, etc., remain unchanged) ...
+  // ----------------------------------------------------------
+  // MARK: - Widget Builders
+  // ----------------------------------------------------------
+
+  // ปุ่มเมนูแนวนอน (ส่งสินค้า/สถานะพัสดุ)
   Widget _buildWideMenuButton(
     String imagePath,
     String label,
@@ -147,41 +164,116 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSquareMenuButton(String imagePath, String label) {
+  // ปุ่มเมนูสี่เหลี่ยม (พัสดุที่ต้องรับ/คุยกับไรเดอร์/แพ็กเกจ)
+  Widget _buildSquareMenuButton(
+    String imagePath,
+    String label,
+    VoidCallback? onTap, // ใช้ ? เพื่อให้เป็น null ได้ (เช่นสำหรับ "แพ็กเกจ")
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 118,
+        height: 100,
+        padding: const EdgeInsets.all(8.0),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.2),
+              spreadRadius: 2,
+              blurRadius: 5,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(imagePath, height: 40),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.black87,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Widget โปรโมชั่นย่อย (Promo Item) 1
+  Widget _buildPromoItem(String text) {
     return Container(
-      width: 118,
-      height: 100,
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 2,
-            blurRadius: 5,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        color: const Color(0xFFE6F6F2),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Image.asset(imagePath, height: 40),
-          const SizedBox(height: 8),
+          const Icon(Icons.local_shipping, color: Color(0xFF07AA7C), size: 30),
+          const SizedBox(height: 4),
           Text(
-            label,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.black87,
-              fontWeight: FontWeight.w500,
-            ),
+            text,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
           ),
         ],
       ),
     );
   }
+
+  // Widget โปรโมชั่นย่อย (Promo Item) 2
+  Widget _buildPromoItem2(String text) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE6F6F2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.motorcycle, color: Color(0xFF07AA7C), size: 30),
+          const SizedBox(height: 4),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Widget โปรโมชั่นย่อย (Promo Item) 3
+  Widget _buildPromoItem3(String text) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE6F6F2),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.archive, color: Color(0xFF07AA7C), size: 30),
+          const SizedBox(height: 4),
+          Text(
+            text,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ----------------------------------------------------------
+  // MARK: - Main Build Method
+  // ----------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
@@ -190,6 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
+            // --- Top Bar / Loading Indicator ---
             _isLoading
                 ? Container(
                     height: 250,
@@ -219,6 +312,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     profileImageUrl: _userData?['profile_image_url'],
                     userAddress: _userData?['customer_address'] ?? 'No address',
                   ),
+
+            // --- Menu Buttons ---
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -226,6 +321,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // ส่งสินค้า
                       _buildWideMenuButton(
                         'assets/image/order.png',
                         'ส่งสินค้า',
@@ -239,6 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         },
                       ),
                       const SizedBox(width: 10),
+                      // สถานะพัสดุ
                       _buildWideMenuButton(
                         'assets/image/order2.png',
                         'สถานะพัสดุ',
@@ -257,25 +354,40 @@ class _HomeScreenState extends State<HomeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      // พัสดุที่ต้องรับ
                       _buildSquareMenuButton(
                         'assets/image/order3.png',
                         'พัสดุที่ต้องรับ',
+                        () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const PendingPickupScreen(),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(width: 10),
+                      // คุยกับไรเดอร์
                       _buildSquareMenuButton(
                         'assets/image/order4.png',
                         'คุยกับไรเดอร์',
+                        null, // ปรับเปลี่ยนเป็น () { ... } ถ้ามีหน้าสำหรับแพ็กเกจ
                       ),
                       const SizedBox(width: 10),
+                      // แพ็กเกจ
                       _buildSquareMenuButton(
                         'assets/image/order5.png',
                         'แพ็กเกจ',
+                        null, // ปรับเปลี่ยนเป็น () { ... } ถ้ามีหน้าสำหรับแพ็กเกจ
                       ),
                     ],
                   ),
                 ],
               ),
             ),
+
+            // --- Promotion Banner ---
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Container(
@@ -357,69 +469,10 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
+      // --- Bottom Navigation Bar ---
       bottomNavigationBar: BottomBar(
         currentIndex: _selectedIndex,
         onItemSelected: _onItemTapped,
-      ),
-    );
-  }
-
-  Widget _buildPromoItem(String text) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE6F6F2),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.local_shipping, color: Color(0xFF07AA7C), size: 30),
-          const SizedBox(height: 4),
-          Text(
-            text,
-            style: const TextStyle(fontSize: 16, color: Colors.black87),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPromoItem2(String text) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE6F6F2),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.motorcycle, color: Color(0xFF07AA7C), size: 30),
-          const SizedBox(height: 4),
-          Text(
-            text,
-            style: const TextStyle(fontSize: 16, color: Colors.black87),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPromoItem3(String text) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE6F6F2),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        children: [
-          const Icon(Icons.archive, color: Color(0xFF07AA7C), size: 30),
-          const SizedBox(height: 4),
-          Text(
-            text,
-            style: const TextStyle(fontSize: 16, color: Colors.black87),
-          ),
-        ],
       ),
     );
   }
