@@ -6,6 +6,8 @@ import 'editrider.dart';
 // **[NEW]** เพิ่ม Firebase Imports
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+// **[NEW]** เพิ่ม Geolocator
+import 'package:geolocator/geolocator.dart'; // <-- ต้องเพิ่ม package: geolocator ใน pubspec.yaml ด้วย
 
 // ----------------------
 // 1. กำหนดค่าสี (Colors)
@@ -146,6 +148,67 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
   }
 
   // ------------------------------------------
+  // **[NEW]** ฟังก์ชันดึงพิกัดปัจจุบันของไรเดอร์
+  // ------------------------------------------
+  Future<Position?> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // ตรวจสอบว่า Location Service เปิดอยู่หรือไม่
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('กรุณาเปิด Location Service เพื่อรับงาน')),
+        );
+      }
+      return null;
+    }
+
+    // ตรวจสอบและร้องขอ Permission
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('คุณต้องอนุญาตให้เข้าถึงตำแหน่งเพื่อรับงาน')),
+          );
+        }
+        return null;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Permission ถูกปฏิเสธถาวร, ไม่สามารถรับงานได้')),
+        );
+      }
+      return null;
+    }
+
+    // ดึงตำแหน่งปัจจุบัน
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high, // ความแม่นยำสูง
+      );
+      return position;
+    } catch (e) {
+      print("Error getting location: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ไม่สามารถดึงตำแหน่งปัจจุบันได้')),
+        );
+      }
+      return null;
+    }
+  }
+
+  // ------------------------------------------
   // **[FIX/NEW]** ฟังก์ชันตรวจสอบว่ามีงานที่กำลังทำอยู่หรือไม่
   // ------------------------------------------
   Future<bool> _checkOngoingOrder() async {
@@ -153,10 +216,7 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
     if (user == null) return false;
 
     try {
-      // ตรวจสอบสถานะที่เป็นงานที่กำลังดำเนินการอยู่:
-      // 'accepted' (รับงานแล้ว กำลังจะไปรับของ)
-      // 'on_delivery' (รับของแล้ว กำลังนำส่ง)
-      // คุณสามารถเพิ่มสถานะอื่นๆ ที่นับว่างานยังไม่เสร็จได้
+      // ตรวจสอบสถานะที่เป็นงานที่กำลังดำเนินการอยู่: 'accepted' และ 'on_delivery'
       final ongoingOrders = await FirebaseFirestore.instance
           .collection('orders')
           .where('riderId', isEqualTo: user.uid) // ผูกกับ Rider ID ปัจจุบัน
@@ -201,7 +261,14 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
       return; // ออกจากฟังก์ชัน ไม่รับงานใหม่
     }
 
-    // 2. ถ้าไม่มีงานที่กำลังทำอยู่ ให้ดำเนินการรับงาน (ใช้ Transaction เพื่อป้องกัน Race Condition)
+    // 2. ดึงตำแหน่งปัจจุบันของไรเดอร์
+    final currentPosition = await _getCurrentLocation();
+    if (currentPosition == null) {
+      // ถ้าดึงตำแหน่งไม่ได้ จะไม่ให้รับงาน
+      return;
+    }
+
+    // 3. ถ้าไม่มีงานที่กำลังทำอยู่ และมีพิกัดแล้ว ให้ดำเนินการรับงาน (ใช้ Transaction เพื่อป้องกัน Race Condition)
     try {
       await FirebaseFirestore.instance.runTransaction((transaction) async {
         final orderRef =
@@ -221,11 +288,14 @@ class _DeliveryHomePageState extends State<DeliveryHomePage> {
               "Order status is $currentStatus, not 'pending'. Job was taken.");
         }
 
-        // อัปเดตสถานะ
+        // อัปเดตสถานะและบันทึกพิกัดไรเดอร์
         transaction.update(orderRef, {
           'status': 'accepted', // เปลี่ยนสถานะเป็นรับงานแล้ว
           'riderId': user.uid, // ผูก Rider ID เข้ากับ Order
           'acceptedAt': FieldValue.serverTimestamp(),
+          // **[NEW]** บันทึกพิกัด Latitude, Longitude ของไรเดอร์ ณ จุดรับงาน
+          'rider_lat': currentPosition.latitude,
+          'rider_long': currentPosition.longitude,
         });
       });
 
