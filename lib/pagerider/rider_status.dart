@@ -248,7 +248,6 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
   void _startLocationStream() {
     if (!_isLocationServiceEnabled) return;
 
-    // ตั้งค่าความแม่นยำ
     const LocationSettings locationSettings = LocationSettings(
       accuracy: LocationAccuracy.high,
       distanceFilter: 10, // อัปเดตทุก 10 เมตร
@@ -256,21 +255,26 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
 
     _positionStreamSubscription =
         Geolocator.getPositionStream(locationSettings: locationSettings).listen(
-      (Position position) {
-        if (mounted) {
-          // อัปเดต State เพื่อให้ Map แสดง Marker ใหม่
-          setState(() {
-            _currentRiderLocation = LatLng(
-              position.latitude,
-              position.longitude,
-            );
-          });
-        }
-      },
-      onError: (e) {
-        print("Error getting location stream: $e");
-      },
-    );
+          (Position position) {
+            // [NEW DEBUGGING] เพิ่ม print ตรงนี้
+            print("======== [GEOLOCATOR] NEW POSITION RECEIVED ========");
+            print("Lat: ${position.latitude}, Long: ${position.longitude}");
+            print("====================================================");
+
+            if (mounted) {
+              // อัปเดต State เพื่อให้ Map แสดง Marker ใหม่
+              setState(() {
+                _currentRiderLocation = LatLng(
+                  position.latitude,
+                  position.longitude,
+                );
+              });
+            }
+          },
+          onError: (e) {
+            print("Error getting location stream: $e");
+          },
+        );
   }
 
   // [NEW] ฟังก์ชันเริ่ม Timer สำหรับอัปเดต Firestore (ทุก 10 วินาที)
@@ -324,11 +328,11 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
         .limit(1)
         .snapshots()
         .map((snapshot) {
-      if (snapshot.docs.isNotEmpty) {
-        return Order.fromFirestore(snapshot.docs.first);
-      }
-      return null;
-    });
+          if (snapshot.docs.isNotEmpty) {
+            return Order.fromFirestore(snapshot.docs.first);
+          }
+          return null;
+        });
   }
 
   // [NEW FUNCTION] อัปเดตสถานะของงานใน Firestore
@@ -366,8 +370,8 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     try {
       // 2. อัปโหลดรูปภาพไปยัง Cloudinary
       // (ใช้ imageFile.path หรือ imageFile ก็ได้ ขึ้นอยู่กับ Service ของคุณ)
-      final String? imageUrl =
-          await _imageUploadService.uploadImageToCloudinary(imageFile);
+      final String? imageUrl = await _imageUploadService
+          .uploadImageToCloudinary(imageFile);
 
       if (imageUrl != null && imageUrl.isNotEmpty) {
         // 3. กำหนดชื่อ Field ที่จะอัปเดตใน Firestore
@@ -675,7 +679,6 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
               _currentOrderFromStream = currentOrder;
 
               if (currentOrder == null) {
-            
                 _mapInitialized = false; // รีเซ็ตสถานะแผนที่ (อันนี้ปลอดภัย)
                 return const Center(
                   child: Padding(
@@ -957,15 +960,15 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     // 1. กำหนดพิกัดปลายทาง
     final LatLng destinationLatLng =
         (order.destinationLatitude != null &&
-                order.destinationLongitude != null)
-            ? LatLng(order.destinationLatitude!, order.destinationLongitude!)
-            : const LatLng(16.2082, 103.2798); // ค่าเริ่มต้น
+            order.destinationLongitude != null)
+        ? LatLng(order.destinationLatitude!, order.destinationLongitude!)
+        : const LatLng(16.2082, 103.2798); // ค่าเริ่มต้น
 
     // 2. กำหนดพิกัดต้นทาง (ผู้ส่ง)
     final LatLng pickupLatLng =
         (order.pickupLatitude != null && order.pickupLongitude != null)
-            ? LatLng(order.pickupLatitude!, order.pickupLongitude!)
-            : destinationLatLng; // ใช้ปลายทางแทน ถ้าไม่มีพิกัดผู้ส่ง
+        ? LatLng(order.pickupLatitude!, order.pickupLongitude!)
+        : destinationLatLng; // ใช้ปลายทางแทน ถ้าไม่มีพิกัดผู้ส่ง
 
     // 3. กำหนด Marker สำหรับปลายทาง, ต้นทาง
     final List<Marker> markers = [
@@ -1305,8 +1308,7 @@ class _DeliveryStatusScreenState extends State<DeliveryStatusScreen> {
     // [REVISED] ตรวจสอบว่ารูปอัปโหลดขึ้น Firebase หรือยัง
     final bool hasAllPhotos =
         (order.pickupImageUrl != null && order.pickupImageUrl!.isNotEmpty) &&
-            (order.deliveryImageUrl != null &&
-                order.deliveryImageUrl!.isNotEmpty);
+        (order.deliveryImageUrl != null && order.deliveryImageUrl!.isNotEmpty);
 
     // [REVISED LOGIC] (เหมือนเดิม)
     final bool isAlreadyDelivered = order.status == 'delivered';
